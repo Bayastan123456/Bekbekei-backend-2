@@ -1,7 +1,65 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Бекбекей · Администрирование</title><link rel="stylesheet" href="/admin/style.css"></head>
-<body><header><strong>Бекбекей</strong><span>Управление доставкой</span><a href="/docs">API</a><button id="logout" hidden>Выйти</button></header>
-<main><section id="login"><p class="eyebrow">АДМИНИСТРАТОР</p><h1>Вход в панель</h1><p>Используйте учётную запись, созданную командой bootstrap.</p><form id="login-form"><label>Телефон<input name="phone" placeholder="+996700000001" autocomplete="username" required></label><label>Пароль<input name="password" type="password" autocomplete="current-password" required></label><button>Войти</button></form></section>
-<section id="dashboard" hidden><div class="title"><div><p class="eyebrow">ОПЕРАЦИИ</p><h1>Рабочая панель</h1></div><button id="refresh">Обновить</button></div><p class="notice">Тестовый режим. QR-платежи и возвраты имитируются; SMS-коды доступны в логе сервера.</p>
-<nav id="tabs"><button data-resource="summary">Обзор</button><button data-resource="orders">Заказы</button><button data-resource="products">Товары</button><button data-resource="inventory">Остатки</button><button data-resource="categories">Категории</button><button data-resource="stores">Магазины</button><button data-resource="staff">Сотрудники</button><button data-resource="promotions">Акции</button><button data-resource="content">Контент</button><button data-resource="payments">Платежи</button><button data-resource="refunds">Возвраты</button><button data-resource="jobs">Задачи</button><button data-resource="audit">Аудит</button><button data-resource="support">Поддержка</button></nav>
-<div id="result"></div><section class="editor"><h2>Создать или изменить запись</h2><p>Выберите готовый шаблон, заполните данные и отправьте запрос. Полное описание полей — в <a href="/docs">документации API</a>.</p><label>Шаблон<select id="template"></select></label><div class="fields"><label>Метод<select id="method"><option>POST</option><option>PUT</option><option>PATCH</option></select></label><label>Путь API<input id="path" value="/api/v1/admin/products"></label></div><label>Данные JSON<textarea id="body" rows="15" spellcheck="false"></textarea></label><button id="submit">Сохранить</button><pre id="response"></pre></section></section><p id="message" role="status"></p></main><script src="/admin/app.js" defer></script></body></html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Бекбекей · Администрирование</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+  </head>
+  <body>
+    <header>
+      <strong>Бекбекей</strong>
+      <span>Панель управления доставкой</span>
+      <a href="/docs">Документация API</a>
+      <button id="logout" hidden>Выйти</button>
+    </header>
+    <main>
+      <section id="login">
+        <p class="eyebrow">АДМИНИСТРАТОР</p>
+        <h1>Вход в панель</h1>
+        <p>Используйте учётную запись, созданную командой bootstrap.</p>
+        <form id="login-form">
+          <label
+            >Телефон<input name="phone" placeholder="+996700000001" autocomplete="username" required
+          /></label>
+          <label>Пароль<input name="password" type="password" autocomplete="current-password" required /></label>
+          <button>Войти</button>
+        </form>
+      </section>
+      <section id="dashboard" hidden>
+        <div class="title">
+          <div>
+            <p class="eyebrow">ОПЕРАЦИИ</p>
+            <h1>Рабочая панель</h1>
+          </div>
+          <button id="refresh">Обновить</button>
+        </div>
+        <p class="notice">
+          Тестовый режим. QR-платежи и возвраты имитируются; SMS-коды сотрудникам не отправляются, их видно только в
+          журнале сервера.
+        </p>
+        <nav id="tabs">
+          <button data-resource="summary">Обзор</button>
+          <button data-resource="orders">Заказы</button>
+          <button data-resource="products">Товары</button>
+          <button data-resource="inventory">Остатки и цены</button>
+          <button data-resource="categories">Категории</button>
+          <button data-resource="stores">Магазины</button>
+          <button data-resource="staff">Сотрудники</button>
+          <button data-resource="promotions">Акции</button>
+          <button data-resource="content">Контент</button>
+          <button data-resource="payments">Платежи</button>
+          <button data-resource="refunds">Возвраты</button>
+          <button data-resource="jobs">Фоновые задачи</button>
+          <button data-resource="audit">Журнал действий</button>
+          <button data-resource="support">Обращения</button>
+        </nav>
+        <p id="message" role="status"></p>
+        <section id="result"></section>
+        <section id="form-area"></section>
+        <section id="detail-area"></section>
+      </section>
+    </main>
+    <script src="/admin/app.js" defer></script>
+  </body>
+</html>

@@ -862,13 +862,2098 @@
           }
         }
       },
-      "Response": {
+      "AuthTokens": {
         "type": "object",
         "properties": {
-          "data": {
-            "description": "Результат операции; идентификаторы — UUID, денежные поля — целые значения в тыйынах."
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          },
+          "tokenType": {
+            "type": "string"
           }
-        }
+        },
+        "additionalProperties": false
+      },
+      "AuthResult": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "CUSTOMER",
+                  "PICKER",
+                  "COURIER",
+                  "ADMIN"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "OtpRequestResult": {
+        "type": "object",
+        "properties": {
+          "expiresIn": {
+            "type": "integer"
+          },
+          "retryAfter": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "ky",
+              "en"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "PICKER",
+              "COURIER",
+              "ADMIN"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "AddressResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "street": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "entrance": {
+            "type": "string"
+          },
+          "intercom": {
+            "type": "string"
+          },
+          "floor": {
+            "type": "string"
+          },
+          "apartment": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StoreResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "radius_km": {
+            "type": "number"
+          },
+          "delivery_fee": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "minimum_order": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "opens_at": {
+            "type": "string"
+          },
+          "closes_at": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StoreAvailability": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "radius_km": {
+            "type": "number"
+          },
+          "radiusKm": {
+            "type": "number",
+            "description": "То же значение, что radius_km, приведённое к числу"
+          },
+          "delivery_fee": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "minimum_order": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "opens_at": {
+            "type": "string"
+          },
+          "closes_at": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "distanceKm": {
+            "type": "number"
+          },
+          "open": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CategoryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "sort": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": {
+            "type": "object",
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            }
+          },
+          "composition": {
+            "type": "object",
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            }
+          },
+          "nutrition": {
+            "type": "object",
+            "properties": {
+              "calories": {
+                "type": "number"
+              },
+              "protein": {
+                "type": "number"
+              },
+              "fat": {
+                "type": "number"
+              },
+              "carbohydrates": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "unit": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_new": {
+            "type": "boolean"
+          },
+          "age_restricted": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": {
+            "type": "object",
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            }
+          },
+          "composition": {
+            "type": "object",
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            }
+          },
+          "nutrition": {
+            "type": "object",
+            "properties": {
+              "calories": {
+                "type": "number"
+              },
+              "protein": {
+                "type": "number"
+              },
+              "fat": {
+                "type": "number"
+              },
+              "carbohydrates": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "unit": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_new": {
+            "type": "boolean"
+          },
+          "age_restricted": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "available": {
+            "type": "integer"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "LOW_STOCK",
+              "OUT_OF_STOCK"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": {
+            "type": "object",
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            }
+          },
+          "composition": {
+            "type": "object",
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            }
+          },
+          "nutrition": {
+            "type": "object",
+            "properties": {
+              "calories": {
+                "type": "number"
+              },
+              "protein": {
+                "type": "number"
+              },
+              "fat": {
+                "type": "number"
+              },
+              "carbohydrates": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "unit": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_new": {
+            "type": "boolean"
+          },
+          "age_restricted": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "available": {
+            "type": "integer"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductListItem"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ContentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "BANNER",
+              "STORY",
+              "NOTICE",
+              "DOCUMENT",
+              "COLLECTION"
+            ]
+          },
+          "title": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            }
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "product_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "sort": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeliveryAvailability": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "stores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoreAvailability"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "Home": {
+        "type": "object",
+        "properties": {
+          "store": {
+            "$ref": "#/components/schemas/StoreResponse"
+          },
+          "open": {
+            "type": "boolean"
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentResponse"
+            }
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductListItem"
+            }
+          },
+          "delivery": {
+            "type": "object",
+            "properties": {
+              "fee": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Тыйын: 13000 = 130 сом"
+              },
+              "etaMinutes": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "integer"
+                  },
+                  "max": {
+                    "type": "integer"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "estimate": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CartItemResponse": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "unit": {
+            "type": "string"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "available": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Cart": {
+        "type": "object",
+        "properties": {
+          "storeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItemResponse"
+            }
+          },
+          "subtotal": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "QuoteItem": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "unit": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "age_restricted": {
+            "type": "boolean"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "available": {
+            "type": "integer"
+          },
+          "gift": {
+            "type": "boolean",
+            "description": "Присутствует только для подарочной позиции"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CheckoutQuote": {
+        "type": "object",
+        "properties": {
+          "store": {
+            "$ref": "#/components/schemas/StoreResponse"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressResponse"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteItem"
+            }
+          },
+          "subtotal": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "discount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "deliveryFee": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "etaMinutes": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer"
+              },
+              "max": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "estimate": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrderItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name_snapshot": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "unit_snapshot": {
+            "type": "string"
+          },
+          "unit_price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "picking_status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PICKED",
+              "EXCLUDED",
+              "REPLACED"
+            ]
+          },
+          "replacement_product_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "replacement_price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом",
+            "nullable": true
+          },
+          "replacement_name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "replacement_status": {
+            "type": "string",
+            "enum": [
+              "PROPOSED",
+              "ACCEPTED",
+              "REJECTED"
+            ],
+            "nullable": true
+          },
+          "reserved_quantity": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrderResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "store_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AWAITING_PAYMENT",
+              "CONFIRMED",
+              "PICKING",
+              "READY",
+              "DELIVERING",
+              "DELIVERED",
+              "CANCELLED",
+              "RETURNING",
+              "RETURNED"
+            ]
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "CASH",
+              "QR"
+            ]
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "UNPAID",
+              "PAID",
+              "REFUND_PENDING",
+              "REFUNDED"
+            ]
+          },
+          "subtotal": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "discount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "delivery_fee": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "address_snapshot": {
+            "type": "object"
+          },
+          "pricing_snapshot": {
+            "type": "object"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "courier_comment": {
+            "type": "string"
+          },
+          "cash_change_from": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом",
+            "nullable": true
+          },
+          "promo_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "request_hash": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "waiting_until": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PickingTaskResponse": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "picker_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "claimed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeliveryTaskResponse": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "courier_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "claimed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "picked_up_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "arrived_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "shift_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrderDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "store_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AWAITING_PAYMENT",
+              "CONFIRMED",
+              "PICKING",
+              "READY",
+              "DELIVERING",
+              "DELIVERED",
+              "CANCELLED",
+              "RETURNING",
+              "RETURNED"
+            ]
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "CASH",
+              "QR"
+            ]
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "UNPAID",
+              "PAID",
+              "REFUND_PENDING",
+              "REFUNDED"
+            ]
+          },
+          "subtotal": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "discount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "delivery_fee": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "address_snapshot": {
+            "type": "object"
+          },
+          "pricing_snapshot": {
+            "type": "object"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "courier_comment": {
+            "type": "string"
+          },
+          "cash_change_from": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом",
+            "nullable": true
+          },
+          "promo_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "request_hash": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "waiting_until": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemResponse"
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "picking": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PickingTaskResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "delivery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryTaskResponse"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RepeatOrderResult": {
+        "type": "object",
+        "properties": {
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Товары из заказа, которые сейчас недоступны в нужном количестве"
+          },
+          "requiresCheckout": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PickingTaskListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "PICKING",
+              "READY"
+            ]
+          },
+          "store_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "picker_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "claimed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "item_count": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeliveryTaskListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "PICKING",
+              "READY",
+              "DELIVERING",
+              "RETURNING"
+            ]
+          },
+          "store_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pickup_address": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "UNPAID",
+              "PAID",
+              "REFUND_PENDING",
+              "REFUNDED"
+            ]
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "CASH",
+              "QR"
+            ]
+          },
+          "courier_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "address": {
+            "type": "object",
+            "description": "Полный address_snapshot, если заказ назначен вам, иначе только поле street"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PAID",
+              "FAILED",
+              "EXPIRED"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PAID",
+              "FAILED",
+              "EXPIRED"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "testMode": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "qrPayload": {
+            "type": "string",
+            "example": "bekbekei-test://payment/...",
+            "description": "Тестовый payload, не банковский QR"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentEventResult": {
+        "type": "object",
+        "properties": {
+          "duplicate": {
+            "type": "boolean"
+          },
+          "refundPending": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CourierShiftResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "courier_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CourierStatistics": {
+        "type": "object",
+        "properties": {
+          "orders": {
+            "type": "integer"
+          },
+          "earnings": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "average_earning": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "rating": {
+            "type": "number",
+            "nullable": true
+          },
+          "ratings": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "shift": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CourierShiftResponse"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CourierHistoryItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DELIVERED",
+              "RETURNED",
+              "CANCELLED"
+            ]
+          },
+          "address_snapshot": {
+            "type": "object"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "earning": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом",
+            "nullable": true
+          },
+          "score": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SupportThreadResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SupportThreadCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SupportMessageListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SupportMessageResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "PICKER",
+              "COURIER",
+              "ADMIN"
+            ]
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "store_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "PICKER",
+              "COURIER",
+              "ADMIN"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "PromotionResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PERCENT",
+              "FIXED",
+              "FREE_DELIVERY",
+              "GIFT"
+            ]
+          },
+          "value": {
+            "type": "integer"
+          },
+          "gift_product_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "trigger_product_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "minimum_order": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "usage_limit": {
+            "type": "integer"
+          },
+          "used": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PromotionCreated": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StoreProductResponse": {
+        "type": "object",
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "stock": {
+            "type": "integer"
+          },
+          "reserved": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "ru"
+            ],
+            "properties": {
+              "ru": {
+                "type": "string"
+              },
+              "ky": {
+                "type": "string"
+              },
+              "en": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdminSummary": {
+        "type": "object",
+        "properties": {
+          "orders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "lowStock": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoreProductResponse"
+            }
+          },
+          "failedJobs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "attempts": {
+                  "type": "integer"
+                },
+                "last_error": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuditLogResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "action": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "payload": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "run_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RefundResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Тыйын: 13000 = 130 сом"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HealthStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReadyStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "CreateOrder": {
         "type": "object",
@@ -934,7 +3019,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HealthStatus"
+                    }
+                  }
                 }
               }
             }
@@ -1048,7 +3141,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReadyStatus"
+                    }
+                  }
                 }
               }
             }
@@ -1162,7 +3263,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OtpRequestResult"
+                    }
+                  }
                 }
               }
             }
@@ -1286,7 +3395,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthResult"
+                    }
+                  }
                 }
               }
             }
@@ -1410,7 +3527,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthResult"
+                    }
+                  }
                 }
               }
             }
@@ -1534,7 +3659,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthTokens"
+                    }
+                  }
                 }
               }
             }
@@ -1769,7 +3902,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StoreResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -1900,7 +4044,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DeliveryAvailability"
+                    }
+                  }
                 }
               }
             }
@@ -2014,7 +4166,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CategoryResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2201,7 +4364,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductListItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2334,7 +4508,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ProductDetail"
+                    }
+                  }
                 }
               }
             }
@@ -2466,7 +4648,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Home"
+                    }
+                  }
                 }
               }
             }
@@ -2596,7 +4786,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContentResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2714,7 +4915,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserProfile"
+                    }
+                  }
                 }
               }
             }
@@ -2830,7 +5039,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserProfile"
+                    }
+                  }
                 }
               }
             }
@@ -2958,7 +5175,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AddressResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -3074,7 +5302,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AddressResponse"
+                    }
+                  }
                 }
               }
             }
@@ -3212,7 +5448,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AddressResponse"
+                    }
+                  }
                 }
               }
             }
@@ -3490,7 +5734,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductListItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -3639,7 +5894,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductListItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -3997,7 +6263,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Cart"
+                    }
+                  }
                 }
               }
             }
@@ -4474,7 +6748,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CheckoutQuote"
+                    }
+                  }
                 }
               }
             }
@@ -4614,7 +6896,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -4624,7 +6914,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -4772,7 +7070,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OrderResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -4900,7 +7209,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -5028,7 +7345,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -5156,7 +7481,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RepeatOrderResult"
+                    }
+                  }
                 }
               }
             }
@@ -5424,7 +7757,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -5573,7 +7914,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentCreated"
+                    }
+                  }
                 }
               }
             }
@@ -5701,7 +8050,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentResponse"
+                    }
+                  }
                 }
               }
             }
@@ -5829,7 +8186,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentEventResult"
+                    }
+                  }
                 }
               }
             }
@@ -5963,7 +8328,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentEventResult"
+                    }
+                  }
                 }
               }
             }
@@ -6113,7 +8486,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PickingTaskListItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -6241,7 +8625,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -6369,7 +8761,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -6509,7 +8909,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeliveryTaskListItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -6637,7 +9048,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -6765,7 +9184,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -6902,7 +9329,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -7040,7 +9475,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -7168,7 +9611,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -7538,7 +9989,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -7666,7 +10125,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -7794,7 +10261,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -7912,7 +10387,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CourierShiftResponse"
+                    }
+                  }
                 }
               }
             }
@@ -8155,7 +10638,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CourierStatistics"
+                    }
+                  }
                 }
               }
             }
@@ -8295,7 +10786,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CourierHistoryItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -8435,7 +10937,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SupportThreadResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -8551,7 +11064,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SupportThreadCreated"
+                    }
+                  }
                 }
               }
             }
@@ -8710,7 +11231,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SupportMessageListItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -8836,7 +11368,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SupportMessageResponse"
+                    }
+                  }
                 }
               }
             }
@@ -8974,7 +11514,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SupportThreadResponse"
+                    }
+                  }
                 }
               }
             }
@@ -9102,7 +11650,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSummary"
+                    }
+                  }
                 }
               }
             }
@@ -9242,7 +11798,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OrderResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -9360,7 +11927,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StoreResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -9476,7 +12054,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StoreResponse"
+                    }
+                  }
                 }
               }
             }
@@ -9604,7 +12190,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CategoryResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -9720,7 +12317,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CategoryResponse"
+                    }
+                  }
                 }
               }
             }
@@ -9870,7 +12475,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -9986,7 +12602,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ProductResponse"
+                    }
+                  }
                 }
               }
             }
@@ -10136,7 +12760,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StoreProductResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -10373,7 +13008,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StaffSummary"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -10489,7 +13135,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StaffCreated"
+                    }
+                  }
                 }
               }
             }
@@ -10617,7 +13271,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PromotionResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -10733,7 +13398,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PromotionCreated"
+                    }
+                  }
                 }
               }
             }
@@ -10861,7 +13534,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContentResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -10977,7 +13661,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContentResponse"
+                    }
+                  }
                 }
               }
             }
@@ -11127,7 +13819,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RefundResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -11267,7 +13970,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PaymentResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -11407,7 +14121,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/JobResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -11547,7 +14272,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuditLogResponse"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -11675,7 +14411,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -11803,7 +14547,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    }
+                  }
                 }
               }
             }
@@ -12052,7 +14804,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StoreResponse"
+                    }
+                  }
                 }
               }
             }
@@ -12190,7 +14950,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CategoryResponse"
+                    }
+                  }
                 }
               }
             }
@@ -12328,7 +15096,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ProductResponse"
+                    }
+                  }
                 }
               }
             }
@@ -12466,7 +15242,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContentResponse"
+                    }
+                  }
                 }
               }
             }
