@@ -82,7 +82,7 @@ function message(text) {
 }
 function logout() {
   accessToken = refreshToken = null;
-  $('dashboard').hidden = true;
+  $('shell').hidden = true;
   $('login').hidden = false;
   $('logout').hidden = true;
   $('login-form').reset();
@@ -748,7 +748,7 @@ $('login-form').onsubmit = async e => {
     refreshToken = result.refreshToken;
     e.target.reset();
     $('login').hidden = true;
-    $('dashboard').hidden = false;
+    $('shell').hidden = false;
     $('logout').hidden = false;
     await loadLookups();
     await load();

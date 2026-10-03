@@ -7,26 +7,51 @@
     <link rel="stylesheet" href="/admin/style.css" />
   </head>
   <body>
-    <header>
-      <strong>Бекбекей</strong>
-      <span>Панель управления доставкой</span>
-      <a href="/docs">Документация API</a>
-      <button id="logout" hidden>Выйти</button>
-    </header>
-    <main>
-      <section id="login">
-        <p class="eyebrow">АДМИНИСТРАТОР</p>
-        <h1>Вход в панель</h1>
-        <p>Используйте учётную запись, созданную командой bootstrap.</p>
-        <form id="login-form">
-          <label
-            >Телефон<input name="phone" placeholder="+996700000001" autocomplete="username" required
-          /></label>
-          <label>Пароль<input name="password" type="password" autocomplete="current-password" required /></label>
-          <button>Войти</button>
-        </form>
-      </section>
-      <section id="dashboard" hidden>
+    <section id="login">
+      <p class="eyebrow">АДМИНИСТРАТОР</p>
+      <h1>Вход в панель</h1>
+      <p>Используйте учётную запись, созданную командой bootstrap.</p>
+      <form id="login-form">
+        <label>Телефон<input name="phone" placeholder="+996700000001" autocomplete="username" required /></label>
+        <label>Пароль<input name="password" type="password" autocomplete="current-password" required /></label>
+        <button>Войти</button>
+      </form>
+    </section>
+    <div class="shell" id="shell" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <strong>Бекбекей</strong>
+          <span>Панель управления</span>
+        </div>
+        <nav id="tabs">
+          <p class="nav-label">Главное</p>
+          <button data-resource="summary">Обзор</button>
+          <button data-resource="orders">Заказы</button>
+          <p class="nav-label">Каталог</p>
+          <button data-resource="products">Товары</button>
+          <button data-resource="inventory">Остатки и цены</button>
+          <button data-resource="categories">Категории</button>
+          <p class="nav-label">Сеть</p>
+          <button data-resource="stores">Магазины</button>
+          <button data-resource="staff">Сотрудники</button>
+          <p class="nav-label">Маркетинг</p>
+          <button data-resource="promotions">Акции</button>
+          <button data-resource="content">Контент</button>
+          <p class="nav-label">Финансы</p>
+          <button data-resource="payments">Платежи</button>
+          <button data-resource="refunds">Возвраты</button>
+          <p class="nav-label">Клиенты</p>
+          <button data-resource="support">Обращения</button>
+          <p class="nav-label">Система</p>
+          <button data-resource="jobs">Фоновые задачи</button>
+          <button data-resource="audit">Журнал действий</button>
+        </nav>
+        <div class="sidebar-footer">
+          <a href="/docs">Документация API</a>
+          <button id="logout">Выйти</button>
+        </div>
+      </aside>
+      <main>
         <div class="title">
           <div>
             <p class="eyebrow">ОПЕРАЦИИ</p>
@@ -38,28 +63,12 @@
           Тестовый режим. QR-платежи и возвраты имитируются; SMS-коды сотрудникам не отправляются, их видно только в
           журнале сервера.
         </p>
-        <nav id="tabs">
-          <button data-resource="summary">Обзор</button>
-          <button data-resource="orders">Заказы</button>
-          <button data-resource="products">Товары</button>
-          <button data-resource="inventory">Остатки и цены</button>
-          <button data-resource="categories">Категории</button>
-          <button data-resource="stores">Магазины</button>
-          <button data-resource="staff">Сотрудники</button>
-          <button data-resource="promotions">Акции</button>
-          <button data-resource="content">Контент</button>
-          <button data-resource="payments">Платежи</button>
-          <button data-resource="refunds">Возвраты</button>
-          <button data-resource="jobs">Фоновые задачи</button>
-          <button data-resource="audit">Журнал действий</button>
-          <button data-resource="support">Обращения</button>
-        </nav>
         <p id="message" role="status"></p>
         <section id="result"></section>
         <section id="form-area"></section>
         <section id="detail-area"></section>
-      </section>
-    </main>
+      </main>
+    </div>
     <script src="/admin/app.js" defer></script>
   </body>
 </html>
