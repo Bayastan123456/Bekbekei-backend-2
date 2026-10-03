@@ -65,7 +65,7 @@ export function createApp(db: Database, cfg: Config) {
   app.use('/api/v1/delivery', deliveryRoutes(db));
   app.use('/api/v1/courier', shiftRoutes(db));
   app.use('/api/v1/support', supportRoutes(db));
-  app.use('/api/v1/admin', adminRoutes(db));
+  app.use('/api/v1/admin', adminRoutes(db, cfg));
   app.use('/api/v1/events', eventRoutes(db));
   // Routers with global auth middleware must only be mounted under their own namespaces.
   const spec = JSON.parse(readFileSync(resolve('docs/openapi.json'), 'utf8'));

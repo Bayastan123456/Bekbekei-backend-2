@@ -123,6 +123,17 @@ test('SMS-код только в логе; согласие, cooldown, одно�
   await call('post', '/auth/otp/verify', null, { phone, code }, 400);
   await call('post', '/auth/otp/request', null, { phone: admin.phone, consent: true }, 403);
 });
+test('код входа виден администратору до подтверждения и пропадает после', async () => {
+  const phone = `+996${++number}`;
+  await call('post', '/auth/otp/request', null, { phone, consent: true }, 202);
+  const code = logs.findLast(l => l.type === 'development.otp' && l.phone === phone)!.code;
+  await call('get', '/admin/otp-codes', null, undefined, 401);
+  const codes = await call('get', '/admin/otp-codes', admin);
+  assert.ok(codes.some((c: any) => c.phone === phone && c.code === code));
+  await call('post', '/auth/otp/verify', null, { phone, code });
+  const after = await call('get', '/admin/otp-codes', admin);
+  assert.ok(!after.some((c: any) => c.phone === phone));
+});
 test('пять неверных кодов блокируют правильный код, попытки сохраняются', async () => {
   const phone = `+996${++number}`;
   await call('post', '/auth/otp/request', null, { phone, consent: true }, 202);

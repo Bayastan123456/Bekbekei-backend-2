@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { one, type Database, type SQL } from '../db.js';
-import { assert, money, page, passwordHash, phone, uuid } from '../core.js';
-import { authentication, roles } from './auth.js';
+import { assert, money, page, passwordHash, phone, uuid, type Config } from '../core.js';
+import { authentication, devOtpSnapshot, roles } from './auth.js';
 import { cancelOrder, orderDetail, setStatus } from './orders.js';
 
 export const localized = z
@@ -65,9 +65,13 @@ async function audit(tx: SQL, userId: string, action: string, id: string, payloa
     JSON.stringify(payload),
   ]);
 }
-export function adminRoutes(db: Database) {
+export function adminRoutes(db: Database, cfg: Config) {
   const r = Router();
   r.use(authentication(db), roles('ADMIN'));
+  r.get('/otp-codes', (_req, res) => {
+    assert(cfg.env !== 'production', 404, 'NOT_FOUND', 'Недоступно');
+    res.json({ data: devOtpSnapshot() });
+  });
   r.get('/summary', async (_req, res) =>
     res.json({
       data: {

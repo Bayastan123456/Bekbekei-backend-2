@@ -264,6 +264,11 @@ th {
   color: #885022;
   font-size: 13px;
 }
+.otp-code {
+  font: 700 18px/1 ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  color: #d85e00;
+}
 .badge {
   display: inline-block;
   padding: 4px 10px;

@@ -241,6 +241,7 @@ const schemas = {
     user: object({ id: uuid, role: { type: 'string', enum: ['CUSTOMER', 'PICKER', 'COURIER', 'ADMIN'] } }),
   }),
   OtpRequestResult: object({ expiresIn: { type: 'integer' }, retryAfter: { type: 'integer' } }),
+  OtpCodeEntry: object({ phone: string, code: { type: 'string', example: '4821' }, expiresAt: dateTime }),
   UserProfile: object({
     id: uuid,
     phone: string,
@@ -877,6 +878,12 @@ add('patch', '/support/threads/{id}', 'Support', 'Закрыть или откр
   role: 'ADMIN',
   body: 'ThreadStatus',
   response: ref('SupportThreadResponse'),
+});
+add('get', '/admin/otp-codes', 'Admin', 'Текущие коды входа (только вне production)', {
+  role: 'ADMIN',
+  description:
+    'Коды, которые клиент ещё не подтвердил. Замена чтению журнала сервера при разработке; в production эндпоинт отключён.',
+  response: arr(ref('OtpCodeEntry')),
 });
 const adminListResponse = {
   summary: ref('AdminSummary'),

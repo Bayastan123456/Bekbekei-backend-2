@@ -5,6 +5,18 @@ import { z } from 'zod';
 import { one, type Database, type SQL, type Row } from '../db.js';
 import { assert, equal, otpHash, passwordValid, phone, sha, token, type Config } from '../core.js';
 export type Actor = Row & { id: string; role: 'CUSTOMER' | 'PICKER' | 'COURIER' | 'ADMIN'; session_id: string };
+// Dev convenience only: lets ADMIN read the current OTP for a phone instead of tailing the server log.
+// Reachable only while smsProvider is 'log', which config() already forbids in production.
+const devOtpCodes = new Map<string, { code: string; expiresAt: number }>();
+export function devOtpSnapshot() {
+  const now = Date.now();
+  for (const [p, entry] of devOtpCodes) if (entry.expiresAt <= now) devOtpCodes.delete(p);
+  return [...devOtpCodes].map(([phone, entry]) => ({
+    phone,
+    code: entry.code,
+    expiresAt: new Date(entry.expiresAt).toISOString(),
+  }));
+}
 declare global {
   namespace Express {
     interface Request {
@@ -74,6 +86,7 @@ export function authRoutes(db: Database, cfg: Config) {
     });
     assert(accepted, 429, 'OTP_COOLDOWN', 'Повторный запрос доступен через 60 секунд');
     cfg.logger({ type: 'development.otp', phone: body.phone, code, expiresIn: 300 });
+    devOtpCodes.set(body.phone, { code, expiresAt: Date.now() + 300_000 });
     res.status(202).json({ data: { expiresIn: 300, retryAfter: 60 } });
   });
   router.post('/otp/verify', async (req, res) => {
@@ -103,6 +116,7 @@ export function authRoutes(db: Database, cfg: Config) {
       return { ...(await newSession(tx, user.id)), user: { id: user.id, role: user.role } };
     });
     assert(result, 400, 'INVALID_OTP', 'Код неверный, использован или истёк');
+    devOtpCodes.delete(body.phone);
     res.json({ data: result });
   });
   router.post('/staff/login', async (req, res) => {

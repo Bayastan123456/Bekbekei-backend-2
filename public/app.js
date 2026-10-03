@@ -382,6 +382,19 @@ const CONTENT_FIELDS = () => [
 
 const RESOURCES = {
   summary: { label: 'Обзор' },
+  'otp-codes': {
+    columns: [
+      { label: 'Телефон', render: r => r.phone },
+      { label: 'Код', render: r => { const code = document.createElement('code'); code.className = 'otp-code'; code.textContent = r.code; return code; } },
+      { label: 'Истекает', render: r => dateTime(r.expiresAt) },
+    ],
+    actions: row => [
+      {
+        label: 'Скопировать',
+        onClick: () => { navigator.clipboard?.writeText(row.code); message('Код скопирован'); },
+      },
+    ],
+  },
   orders: {
     columns: [
       { label: '№', render: r => r.number },

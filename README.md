@@ -118,7 +118,7 @@ curl -X POST http://localhost:3000/api/v1/auth/otp/request \
   -d '{"phone":"+996700123456","consent":true}'
 ```
 
-В терминале API появится запись `{"type":"development.otp","phone":"...","code":"..."}`. Возьмите код оттуда и отправьте:
+В терминале API появится запись `{"type":"development.otp","phone":"...","code":"..."}`. Код также доступен администратору на вкладке «Коды входа» в админке или через `GET /api/v1/admin/otp-codes` (требует Bearer-токен ADMIN; эндпоинт отключён при `NODE_ENV=production`). Возьмите код и отправьте:
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/auth/otp/verify \
@@ -132,7 +132,7 @@ curl -X POST http://localhost:3000/api/v1/auth/otp/verify \
 Authorization: Bearer ACCESS_TOKEN
 ```
 
-Код хранится в базе как HMAC, access/refresh токены — как SHA-256 хеши, пароли — scrypt с индивидуальной солью. Открытый код доступен только в логе разработки. Токен Figma в проект не добавлен.
+Код хранится в базе как HMAC, access/refresh токены — как SHA-256 хеши, пароли — scrypt с индивидуальной солью. Открытый код доступен только вне production — в логе сервера и через `GET /api/v1/admin/otp-codes` для ADMIN. Токен Figma в проект не добавлен.
 
 ## Как оформить заказ с фронтенда
 
