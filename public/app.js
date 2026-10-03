@@ -1,4 +1,7 @@
-// Tokens stay in memory, never in localStorage or URL parameters.
+// accessToken stays in memory only. refreshToken also lives in sessionStorage so a page
+// reload doesn't log the admin out — cleared on logout and when the tab closes, never in
+// localStorage (which would survive indefinitely) or the URL.
+const SESSION_KEY = 'bekbekei_admin_refresh_token';
 let accessToken = null;
 let refreshToken = null;
 let resource = 'summary';
@@ -60,6 +63,7 @@ async function api(path, options = {}, retry = true) {
       const j = await r.json();
       accessToken = j.data.accessToken;
       refreshToken = j.data.refreshToken;
+      sessionStorage.setItem(SESSION_KEY, refreshToken);
       return api(path, options, false);
     }
     logout();
@@ -82,6 +86,7 @@ function message(text) {
 }
 function logout() {
   accessToken = refreshToken = null;
+  sessionStorage.removeItem(SESSION_KEY);
   $('shell').hidden = true;
   $('login').hidden = false;
   $('logout').hidden = true;
@@ -745,6 +750,13 @@ async function load() {
   }
 }
 
+async function enterDashboard() {
+  $('login').hidden = true;
+  $('shell').hidden = false;
+  $('logout').hidden = false;
+  await loadLookups();
+  await load();
+}
 $('login-form').onsubmit = async e => {
   e.preventDefault();
   try {
@@ -759,12 +771,9 @@ $('login-form').onsubmit = async e => {
     }
     accessToken = result.accessToken;
     refreshToken = result.refreshToken;
+    sessionStorage.setItem(SESSION_KEY, refreshToken);
     e.target.reset();
-    $('login').hidden = true;
-    $('shell').hidden = false;
-    $('logout').hidden = false;
-    await loadLookups();
-    await load();
+    await enterDashboard();
   } catch (e) {
     message(e.message);
   }
@@ -790,3 +799,23 @@ $('tabs').onclick = e => {
     void load();
   }
 };
+(async function restoreSession() {
+  const stored = sessionStorage.getItem(SESSION_KEY);
+  if (!stored) return;
+  refreshToken = stored;
+  try {
+    const result = await api('/api/v1/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }, false);
+    accessToken = result.accessToken;
+    refreshToken = result.refreshToken;
+    sessionStorage.setItem(SESSION_KEY, refreshToken);
+    const me = await api('/api/v1/me');
+    if (me.role !== 'ADMIN') {
+      await fetch('/api/v1/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
+      throw new Error('Панель доступна только администратору');
+    }
+    await enterDashboard();
+  } catch {
+    accessToken = refreshToken = null;
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+})();
