@@ -17,14 +17,12 @@ export function eventRoutes(db: Database) {
     const count = connections.get(req.actor.id) ?? 0;
     assert(count < 3, 429, 'TOO_MANY_STREAMS', 'Не больше трёх потоков на пользователя');
     connections.set(req.actor.id, count + 1);
-    res
-      .status(200)
-      .set({
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no',
-      });
+    res.status(200).set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
     res.flushHeaders();
     let busy = false,
       closed = false;

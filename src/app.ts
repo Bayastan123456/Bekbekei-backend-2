@@ -76,16 +76,14 @@ export function createApp(db: Database, cfg: Config) {
   app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const requestId = res.getHeader('X-Request-Id');
     if (error instanceof ZodError) {
-      res
-        .status(422)
-        .json({
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Проверьте входящие данные',
-            details: error.issues.map(i => ({ path: i.path, message: i.message })),
-            requestId,
-          },
-        });
+      res.status(422).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Проверьте входящие данные',
+          details: error.issues.map(i => ({ path: i.path, message: i.message })),
+          requestId,
+        },
+      });
       return;
     }
     if (error instanceof AppError) {

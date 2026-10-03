@@ -158,27 +158,25 @@ export function userRoutes(db: Database) {
   r.post('/me/addresses', roles('CUSTOMER'), async (req, res) => {
     const b = addressSchema.parse(req.body),
       id = randomUUID();
-    res
-      .status(201)
-      .json({
-        data: await one(
-          db,
-          `INSERT INTO addresses(id,user_id,label,street,latitude,longitude,entrance,intercom,floor,apartment,comment) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-          [
-            id,
-            req.actor.id,
-            b.label,
-            b.street,
-            b.latitude,
-            b.longitude,
-            b.entrance,
-            b.intercom,
-            b.floor,
-            b.apartment,
-            b.comment,
-          ],
-        ),
-      });
+    res.status(201).json({
+      data: await one(
+        db,
+        `INSERT INTO addresses(id,user_id,label,street,latitude,longitude,entrance,intercom,floor,apartment,comment) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [
+          id,
+          req.actor.id,
+          b.label,
+          b.street,
+          b.latitude,
+          b.longitude,
+          b.entrance,
+          b.intercom,
+          b.floor,
+          b.apartment,
+          b.comment,
+        ],
+      ),
+    });
   });
   r.put('/me/addresses/:id', roles('CUSTOMER'), async (req, res) => {
     const b = addressSchema.parse(req.body),

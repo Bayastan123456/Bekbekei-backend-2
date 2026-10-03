@@ -111,16 +111,14 @@ export function paymentRoutes(db: Database, cfg: Config) {
         [randomUUID(), id, o.total, key],
       ))!;
     });
-    res
-      .status(201)
-      .json({
-        data: {
-          ...payment,
-          testMode: true,
-          qrPayload: `bekbekei-test://payment/${payment.id}`,
-          message: 'Тестовая QR-оплата. Не является банковским QR-кодом.',
-        },
-      });
+    res.status(201).json({
+      data: {
+        ...payment,
+        testMode: true,
+        qrPayload: `bekbekei-test://payment/${payment.id}`,
+        message: 'Тестовая QR-оплата. Не является банковским QR-кодом.',
+      },
+    });
   });
   r.get('/payments/:id', async (req, res) => {
     const p = await one(db, 'SELECT * FROM payments WHERE id=$1', [uuid.parse(req.params.id)]);
