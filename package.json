@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "migrate": "node --import tsx src/scripts/migrate.ts",
     "seed": "node --import tsx src/scripts/seed.ts",
+    "seed:catalog": "node --import tsx src/scripts/seed-catalog.ts",
     "bootstrap": "node --import tsx src/scripts/bootstrap.ts",
     "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts",
     "check": "tsc --noEmit",
