@@ -13,6 +13,10 @@ import {
   releaseInventory,
   setStatus,
 } from './orders.js';
+export async function courierRate(tx: SQL) {
+  const row = await one(tx, "SELECT value FROM settings WHERE key='courier_delivery_rate'", []);
+  return row ? Number(row.value) : 8000;
+}
 export async function assignedStore(tx: SQL, actor: Actor, storeId: string) {
   assert(
     await one(tx, 'SELECT 1 FROM staff_stores WHERE user_id=$1 AND store_id=$2', [actor.id, storeId]),
@@ -327,10 +331,9 @@ export function deliveryRoutes(db: Database) {
       assert(o.status === 'DELIVERING' && task.arrived_at, 409, 'INVALID_STATE', 'Сначала отметьте прибытие');
       assert(o.payment_status === 'PAID', 409, 'PAYMENT_REQUIRED', 'Подтвердите оплату');
       await tx.query('UPDATE delivery_tasks SET completed_at=now() WHERE order_id=$1', [id]);
-      // Explicit MVP tariff: 80 KGS, configurable via a later tariff module.
       await tx.query(
-        'INSERT INTO courier_earnings(order_id,courier_id,shift_id,amount) VALUES($1,$2,$3,8000) ON CONFLICT DO NOTHING',
-        [id, req.actor.id, task.shift_id],
+        'INSERT INTO courier_earnings(order_id,courier_id,shift_id,amount) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',
+        [id, req.actor.id, task.shift_id, await courierRate(tx)],
       );
       await setStatus(tx, o, 'DELIVERED', req.actor.id);
     });
@@ -377,8 +380,8 @@ export function deliveryRoutes(db: Database) {
         );
       await tx.query('UPDATE delivery_tasks SET completed_at=now() WHERE order_id=$1', [id]);
       await tx.query(
-        'INSERT INTO courier_earnings(order_id,courier_id,shift_id,amount) VALUES($1,$2,$3,8000) ON CONFLICT DO NOTHING',
-        [id, req.actor.id, task.shift_id],
+        'INSERT INTO courier_earnings(order_id,courier_id,shift_id,amount) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',
+        [id, req.actor.id, task.shift_id, await courierRate(tx)],
       );
       await setStatus(tx, o, 'RETURNED', req.actor.id);
     });
@@ -444,6 +447,17 @@ export function shiftRoutes(db: Database) {
         currency: 'KGS',
         shift: await one(db, 'SELECT * FROM courier_shifts WHERE courier_id=$1 AND ended_at IS NULL', [req.actor.id]),
       },
+    });
+  });
+  r.get('/balance', async (req, res) => {
+    const earned = await one(db, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_earnings WHERE courier_id=$1', [
+      req.actor.id,
+    ]);
+    const paid = await one(db, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_payouts WHERE courier_id=$1', [
+      req.actor.id,
+    ]);
+    res.json({
+      data: { earned: earned!.s, paid: paid!.s, balance: earned!.s - paid!.s, currency: 'KGS' },
     });
   });
   r.get('/history', async (req, res) => {

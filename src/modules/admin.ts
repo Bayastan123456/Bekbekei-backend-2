@@ -548,5 +548,74 @@ export function adminRoutes(db: Database, cfg: Config) {
       data: (await db.query('SELECT * FROM audit_logs ORDER BY id DESC LIMIT $1 OFFSET $2', [p.limit, p.offset])).rows,
     });
   });
+  r.get('/settings', async (_req, res) => {
+    const row = await one(db, "SELECT value FROM settings WHERE key='courier_delivery_rate'", []);
+    res.json({ data: { courierDeliveryRate: row ? Number(row.value) : 8000 } });
+  });
+  r.put('/settings', async (req, res) => {
+    const b = z.object({ courierDeliveryRate: money }).strict().parse(req.body);
+    await db.transaction(async tx => {
+      await tx.query(
+        "INSERT INTO settings(key,value,updated_at) VALUES('courier_delivery_rate',$1,now()) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        [JSON.stringify(b.courierDeliveryRate)],
+      );
+      await audit(tx, req.actor.id, 'UPDATE_SETTINGS', 'courier_delivery_rate', b);
+    });
+    res.status(204).end();
+  });
+  r.get('/couriers', async (_req, res) => {
+    res.json({
+      data: (
+        await db.query(
+          `SELECT u.id,u.phone,u.first_name,u.last_name,u.active,
+            COALESCE(e.earned,0)::int earned,COALESCE(p.paid,0)::int paid,
+            (COALESCE(e.earned,0)-COALESCE(p.paid,0))::int balance
+           FROM users u
+           LEFT JOIN (SELECT courier_id,sum(amount) earned FROM courier_earnings GROUP BY courier_id) e ON e.courier_id=u.id
+           LEFT JOIN (SELECT courier_id,sum(amount) paid FROM courier_payouts GROUP BY courier_id) p ON p.courier_id=u.id
+           WHERE u.role='COURIER' ORDER BY u.created_at`,
+        )
+      ).rows,
+    });
+  });
+  r.post('/couriers/:id/payouts', async (req, res) => {
+    const id = uuid.parse((req.params as Record<string, string>).id);
+    const b = z
+      .object({ amount: z.number().int().min(1).max(100_000_000), comment: z.string().max(500).default('') })
+      .strict()
+      .parse(req.body);
+    await db.transaction(async tx => {
+      const courier = await one(tx, "SELECT id FROM users WHERE id=$1 AND role='COURIER' FOR NO KEY UPDATE", [id]);
+      assert(courier, 404, 'NOT_FOUND', 'Курьер не найден');
+      const earned = (await one(tx, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_earnings WHERE courier_id=$1', [
+        id,
+      ]))!.s;
+      const paid = (await one(tx, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_payouts WHERE courier_id=$1', [
+        id,
+      ]))!.s;
+      assert(b.amount <= earned - paid, 422, 'INSUFFICIENT_BALANCE', 'Сумма выплаты больше остатка баланса');
+      await tx.query('INSERT INTO courier_payouts(id,courier_id,amount,comment,actor_id) VALUES($1,$2,$3,$4,$5)', [
+        randomUUID(),
+        id,
+        b.amount,
+        b.comment,
+        req.actor.id,
+      ]);
+      await audit(tx, req.actor.id, 'COURIER_PAYOUT', id, { amount: b.amount });
+    });
+    res.status(201).json({ data: { ok: true } });
+  });
+  r.get('/payouts', async (req, res) => {
+    const p = page(req.query);
+    res.json({
+      data: (
+        await db.query(
+          `SELECT cp.*,u.phone courier_phone FROM courier_payouts cp JOIN users u ON u.id=cp.courier_id
+           ORDER BY cp.created_at DESC LIMIT $1 OFFSET $2`,
+          [p.limit, p.offset],
+        )
+      ).rows,
+    });
+  });
   return r;
 }

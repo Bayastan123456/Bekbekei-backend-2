@@ -211,6 +211,58 @@ test('полный заказ наличными, доставка, единст
   assert.equal((await call('get', `/me/purchased?storeId=${seedIds.store}`, customer)).length, 1);
   await call('post', '/courier/shifts/end', courier, {}, 204);
 });
+test('баланс курьера, выплата и настраиваемый тариф', async () => {
+  const { customer, body } = await setup();
+  const o = await order(customer, body);
+  const { picker, courier } = await staffFor(o);
+  await ready(o, picker);
+  await call('post', `/delivery/tasks/${o.id}/pickup`, courier);
+  await call('post', `/delivery/tasks/${o.id}/arrive`, courier, {}, 204);
+  await call('post', `/delivery/tasks/${o.id}/confirm-cash`, courier, {}, 204);
+  await call('post', `/delivery/tasks/${o.id}/complete`, courier);
+  assert.deepEqual(await call('get', '/courier/balance', courier), {
+    earned: 8000,
+    paid: 0,
+    balance: 8000,
+    currency: 'KGS',
+  });
+
+  await call('get', '/admin/couriers', courier, undefined, 403);
+  const couriers = await call('get', '/admin/couriers', admin);
+  const row = couriers.find((c: any) => c.id === courier.id);
+  assert.equal(row.earned, 8000);
+  assert.equal(row.balance, 8000);
+
+  await call('post', `/admin/couriers/${courier.id}/payouts`, admin, { amount: 9000 }, 422);
+  await call('post', `/admin/couriers/${courier.id}/payouts`, admin, { amount: 3000 }, 201);
+  assert.deepEqual(await call('get', '/courier/balance', courier), {
+    earned: 8000,
+    paid: 3000,
+    balance: 5000,
+    currency: 'KGS',
+  });
+  const payouts = await call('get', '/admin/payouts', admin);
+  assert.ok(payouts.some((p: any) => p.courier_id === courier.id && p.amount === 3000));
+
+  // Tariff change applies only to future deliveries, not the one already paid out above.
+  await call('put', '/admin/settings', courier, { courierDeliveryRate: 10000 }, 403);
+  assert.equal((await call('get', '/admin/settings', admin)).courierDeliveryRate, 8000);
+  await call('put', '/admin/settings', admin, { courierDeliveryRate: 10000 }, 204);
+  assert.equal((await call('get', '/admin/settings', admin)).courierDeliveryRate, 10000);
+
+  const { customer: customer2, body: body2 } = await setup();
+  const o2 = await order(customer2, body2);
+  await call('post', `/picking/tasks/${o2.id}/claim`, picker);
+  await call('post', `/delivery/tasks/${o2.id}/claim`, courier);
+  await ready(o2, picker);
+  await call('post', `/delivery/tasks/${o2.id}/pickup`, courier);
+  await call('post', `/delivery/tasks/${o2.id}/arrive`, courier, {}, 204);
+  await call('post', `/delivery/tasks/${o2.id}/confirm-cash`, courier, {}, 204);
+  await call('post', `/delivery/tasks/${o2.id}/complete`, courier);
+  assert.equal((await call('get', '/courier/balance', courier)).earned, 18000);
+
+  await call('post', '/courier/shifts/end', courier, {}, 204);
+});
 test('стоимость перепроверяется; неизвестные поля и чужие адреса отклоняются', async () => {
   const { customer, body } = await setup();
   await call('post', '/orders', customer, { ...body, expectedTotal: 1 }, 409, { 'Idempotency-Key': randomUUID() });

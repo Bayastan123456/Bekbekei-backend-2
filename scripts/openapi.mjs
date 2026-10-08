@@ -484,6 +484,30 @@ const schemas = {
     earning: nullable(amount),
     score: nullable({ type: 'integer' }),
   }),
+  CourierBalance: object({ earned: amount, paid: amount, balance: amount, currency: string }),
+  CourierBalanceRow: object({
+    id: uuid,
+    phone: string,
+    first_name: string,
+    last_name: string,
+    active: boolean,
+    earned: amount,
+    paid: amount,
+    balance: amount,
+  }),
+  Payout: object({ amount: { type: 'integer', minimum: 1 }, comment: string }),
+  PayoutResult: object({ ok: { type: 'boolean', enum: [true] } }),
+  PayoutResponse: object({
+    id: uuid,
+    courier_id: uuid,
+    courier_phone: string,
+    amount: amount,
+    comment: string,
+    actor_id: nullable(uuid),
+    created_at: dateTime,
+  }),
+  Settings: object({ courierDeliveryRate: amount }, ['courierDeliveryRate']),
+  SettingsResponse: object({ courierDeliveryRate: amount }),
   SupportThreadResponse: object({
     id: uuid,
     user_id: uuid,
@@ -852,6 +876,11 @@ add('get', '/courier/history', 'Courier', 'История доставки', {
   query: pag,
   response: arr(ref('CourierHistoryItem')),
 });
+add('get', '/courier/balance', 'Courier', 'Накопленный баланс к выплате', {
+  role: 'COURIER',
+  description: 'balance = сумма начислений (courier_earnings) минус сумма уже выплаченного (courier_payouts).',
+  response: ref('CourierBalance'),
+});
 add('get', '/support/threads', 'Support', 'Мои обращения, для админа — все', {
   role: 'ANY',
   query: pag,
@@ -964,6 +993,34 @@ add('patch', '/admin/promotions/{code}', 'Admin', 'Включить или от�
   status: 204,
 });
 add('post', '/admin/jobs/{id}/retry', 'Admin', 'Повторить незавершённую задачу', { role: 'ADMIN', status: 204 });
+add('get', '/admin/settings', 'Admin', 'Текущие настройки (тариф курьера и т.п.)', {
+  role: 'ADMIN',
+  response: ref('SettingsResponse'),
+});
+add('put', '/admin/settings', 'Admin', 'Изменить настройки', {
+  role: 'ADMIN',
+  body: 'Settings',
+  status: 204,
+  description:
+    'Новый тариф применяется только к будущим начислениям, уже выплаченное и начисленное не пересчитывается.',
+});
+add('get', '/admin/couriers', 'Admin', 'Курьеры с накопленным балансом', {
+  role: 'ADMIN',
+  response: arr(ref('CourierBalanceRow')),
+});
+add('post', '/admin/couriers/{id}/payouts', 'Admin', 'Записать выплату курьеру', {
+  role: 'ADMIN',
+  body: 'Payout',
+  status: 201,
+  description:
+    'Деньги выплачиваются вне приложения; этот вызов только уменьшает баланс. Нельзя выплатить больше текущего баланса (422 INSUFFICIENT_BALANCE).',
+  response: ref('PayoutResult'),
+});
+add('get', '/admin/payouts', 'Admin', 'История выплат курьерам', {
+  role: 'ADMIN',
+  query: pag,
+  response: arr(ref('PayoutResponse')),
+});
 add('get', '/events', 'Events', 'Поток событий SSE', {
   role: 'ANY',
   query: [['after', { type: 'integer', minimum: 0 }]],

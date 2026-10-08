@@ -496,6 +496,46 @@ const RESOURCES = {
     ],
     create: { title: 'Новый сотрудник', fields: STAFF_CREATE_FIELDS, path: '/api/v1/admin/staff' },
   },
+  couriers: {
+    columns: [
+      { label: 'Телефон', render: r => r.phone },
+      { label: 'Имя', render: r => `${r.first_name} ${r.last_name}`.trim() },
+      { label: 'Заработано', render: r => money(r.earned) },
+      { label: 'Выплачено', render: r => money(r.paid) },
+      { label: 'Баланс к выплате', render: r => money(r.balance) },
+      { label: 'Статус', render: r => badge(r.active ? 'Работает' : 'Заблокирован', r.active ? 'DELIVERED' : 'CANCELLED') },
+    ],
+    actions: row => [
+      {
+        label: 'Выплатить',
+        onClick: () =>
+          renderForm(
+            `Выплата: ${row.phone} (баланс ${money(row.balance)})`,
+            [
+              { key: 'amount', label: 'Сумма, сом', type: 'money', required: true },
+              { key: 'comment', label: 'Комментарий', type: 'text' },
+            ],
+            null,
+            async body => {
+              await api(`/api/v1/admin/couriers/${row.id}/payouts`, { method: 'POST', body: JSON.stringify(body) });
+              message('Выплата записана');
+              clearForm();
+              await load();
+            },
+            clearForm,
+          ),
+      },
+    ],
+  },
+  payouts: {
+    columns: [
+      { label: 'Курьер', render: r => r.courier_phone },
+      { label: 'Сумма', render: r => money(r.amount) },
+      { label: 'Комментарий', render: r => r.comment || '—' },
+      { label: 'Когда', render: r => dateTime(r.created_at) },
+    ],
+    actions: () => [],
+  },
   promotions: {
     columns: [
       { label: 'Код', render: r => r.code },
@@ -593,6 +633,20 @@ function renderCreateForm() {
     clearForm();
     await load();
   });
+}
+
+async function renderCourierSettings() {
+  const settings = await api('/api/v1/admin/settings');
+  renderForm(
+    'Тариф курьеру',
+    [{ key: 'courierDeliveryRate', label: 'За вручение или возврат в магазин, сом', type: 'money', required: true }],
+    settings,
+    async body => {
+      await api('/api/v1/admin/settings', { method: 'PUT', body: JSON.stringify(body) });
+      message('Тариф обновлён');
+      await load();
+    },
+  );
 }
 
 async function showOrderDetail(id) {
@@ -743,7 +797,8 @@ async function load() {
       const rows = await api(path);
       $('result').replaceChildren(table(rows, def.columns, def.actions));
     }
-    renderCreateForm();
+    if (resource === 'couriers') await renderCourierSettings();
+    else renderCreateForm();
     document.querySelectorAll('[data-resource]').forEach(b => b.classList.toggle('active', b.dataset.resource === resource));
   } catch (e) {
     message(e.message);
