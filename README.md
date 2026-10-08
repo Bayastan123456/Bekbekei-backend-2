@@ -200,4 +200,4 @@ TEST_DATABASE_URL=postgres://USER:PASSWORD@localhost:5432/DATABASE npm test
 - Изображения задаются HTTPS-ссылками; загрузка файлов и объектное хранилище пока не подключены.
 - Контент документов в макете не приведён полностью; администратор должен добавить утверждённые тексты. `ageConfirmed` — только интерфейсное подтверждение, не проверка документов.
 
-Подробности: [архитектура](docs/ARCHITECTURE.md), [передача проекта](docs/HANDOFF.md), [OpenAPI](docs/openapi.json).
+Подробности: [архитектура](docs/ARCHITECTURE.md), [гайд для фронтенда](docs/FRONTEND_GUIDE.md), [передача проекта](docs/HANDOFF.md), [OpenAPI](docs/openapi.json).
