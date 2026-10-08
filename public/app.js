@@ -69,7 +69,13 @@ async function api(path, options = {}, retry = true) {
     logout();
   }
   const body = res.status === 204 ? { data: null } : await res.json();
-  if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+  if (!res.ok) {
+    const details = body.error?.details;
+    const fields = Array.isArray(details)
+      ? details.map(d => `${Array.isArray(d.path) ? d.path.join('.') : d.path} — ${d.message}`).join('; ')
+      : '';
+    throw new Error(body.error?.message ? body.error.message + (fields ? `: ${fields}` : '') : `HTTP ${res.status}`);
+  }
   return body.data;
 }
 let cache = { stores: [], categories: [], products: [] };
@@ -144,6 +150,14 @@ function buildField(f, row) {
   }
   input.name = f.key;
   if (f.required) input.required = true;
+  if (f.type !== 'select' && f.type !== 'multiselect' && f.type !== 'checkbox') {
+    if (f.min !== undefined) input.min = f.min;
+    if (f.max !== undefined) input.max = f.max;
+    if (f.minLength !== undefined) input.minLength = f.minLength;
+    if (f.maxLength !== undefined) input.maxLength = f.maxLength;
+    if (f.pattern) input.pattern = f.pattern;
+    if (f.title) input.title = f.title;
+  }
   const value = row ? rowValue(row, f.key) : undefined;
   if (f.type === 'checkbox') input.checked = row ? !!value : f.defaultChecked === true;
   else if (value !== undefined && value !== null) {
@@ -287,36 +301,42 @@ function categoryName(id) {
 }
 
 const STORE_FIELDS = () => [
-  { key: 'name', label: 'Название', type: 'text', required: true },
-  { key: 'address', label: 'Адрес', type: 'text', required: true },
-  { key: 'latitude', label: 'Широта', type: 'number', step: '0.0001', required: true },
-  { key: 'longitude', label: 'Долгота', type: 'number', step: '0.0001', required: true },
-  { key: 'radiusKm', label: 'Радиус доставки, км', type: 'number', step: '0.1', required: true },
-  { key: 'deliveryFee', label: 'Стоимость доставки, сом', type: 'money', required: true },
-  { key: 'minimumOrder', label: 'Минимальный заказ, сом', type: 'money' },
+  { key: 'name', label: 'Название', type: 'text', required: true, maxLength: 150 },
+  { key: 'address', label: 'Адрес', type: 'text', required: true, minLength: 3, maxLength: 300 },
+  { key: 'latitude', label: 'Широта', type: 'number', step: '0.0001', required: true, min: -90, max: 90 },
+  { key: 'longitude', label: 'Долгота', type: 'number', step: '0.0001', required: true, min: -180, max: 180 },
+  { key: 'radiusKm', label: 'Радиус доставки, км', type: 'number', step: '0.1', required: true, min: 0.01, max: 100 },
+  { key: 'deliveryFee', label: 'Стоимость доставки, сом', type: 'money', required: true, min: 0, max: 1000000 },
+  { key: 'minimumOrder', label: 'Минимальный заказ, сом', type: 'money', min: 0, max: 1000000 },
   { key: 'opensAt', label: 'Время открытия', type: 'time', required: true },
   { key: 'closesAt', label: 'Время закрытия', type: 'time', required: true },
   { key: 'active', label: 'Магазин активен', type: 'checkbox', defaultChecked: true },
 ];
 const CATEGORY_FIELDS = () => [
-  { key: 'name.ru', label: 'Название (рус.)', type: 'text', required: true },
-  { key: 'name.ky', label: 'Название (кырг.)', type: 'text' },
-  { key: 'name.en', label: 'Название (англ.)', type: 'text' },
-  { key: 'sort', label: 'Порядок сортировки', type: 'number' },
+  { key: 'name.ru', label: 'Название (рус.)', type: 'text', required: true, maxLength: 5000 },
+  { key: 'name.ky', label: 'Название (кырг.)', type: 'text', maxLength: 5000 },
+  { key: 'name.en', label: 'Название (англ.)', type: 'text', maxLength: 5000 },
+  { key: 'sort', label: 'Порядок сортировки', type: 'number', min: 0, max: 10000 },
 ];
 const PRODUCT_FIELDS = () => [
   { key: 'categoryId', label: 'Категория', type: 'select', required: true, options: categoryOptions() },
-  { key: 'name.ru', label: 'Название (рус.)', type: 'text', required: true },
-  { key: 'name.ky', label: 'Название (кырг.)', type: 'text' },
-  { key: 'name.en', label: 'Название (англ.)', type: 'text' },
-  { key: 'unit', label: 'Единица продажи (например, «1 шт.»)', type: 'text', required: true },
-  { key: 'description.ru', label: 'Описание (рус.)', type: 'textarea' },
-  { key: 'composition.ru', label: 'Состав (рус.)', type: 'textarea' },
-  { key: 'nutrition.calories', label: 'Калорийность, ккал', type: 'number' },
-  { key: 'nutrition.protein', label: 'Белки, г', type: 'number' },
-  { key: 'nutrition.fat', label: 'Жиры, г', type: 'number' },
-  { key: 'nutrition.carbohydrates', label: 'Углеводы, г', type: 'number' },
-  { key: 'imageUrl', label: 'Ссылка на изображение (https://…)', type: 'url' },
+  { key: 'name.ru', label: 'Название (рус.)', type: 'text', required: true, maxLength: 5000 },
+  { key: 'name.ky', label: 'Название (кырг.)', type: 'text', maxLength: 5000 },
+  { key: 'name.en', label: 'Название (англ.)', type: 'text', maxLength: 5000 },
+  { key: 'unit', label: 'Единица продажи (например, «1 шт.»)', type: 'text', required: true, maxLength: 60 },
+  { key: 'description.ru', label: 'Описание (рус.)', type: 'textarea', maxLength: 5000 },
+  { key: 'composition.ru', label: 'Состав (рус.)', type: 'textarea', maxLength: 5000 },
+  { key: 'nutrition.calories', label: 'Калорийность, ккал', type: 'number', min: 0, max: 10000 },
+  { key: 'nutrition.protein', label: 'Белки, г', type: 'number', min: 0, max: 1000 },
+  { key: 'nutrition.fat', label: 'Жиры, г', type: 'number', min: 0, max: 1000 },
+  { key: 'nutrition.carbohydrates', label: 'Углеводы, г', type: 'number', min: 0, max: 1000 },
+  {
+    key: 'imageUrl',
+    label: 'Ссылка на изображение (https://…)',
+    type: 'url',
+    pattern: 'https://.*',
+    title: 'Ссылка должна начинаться с https://',
+  },
   { key: 'isNew', label: 'Пометить «Новинка»', type: 'checkbox' },
   { key: 'ageRestricted', label: 'Товар 18+', type: 'checkbox' },
   { key: 'active', label: 'В продаже', type: 'checkbox', defaultChecked: true },
@@ -324,12 +344,20 @@ const PRODUCT_FIELDS = () => [
 const INVENTORY_FIELDS = () => [
   { key: 'storeId', label: 'Магазин', type: 'select', required: true, options: storeOptions() },
   { key: 'productId', label: 'Товар', type: 'select', required: true, options: productOptions() },
-  { key: 'price', label: 'Цена, сом', type: 'money', required: true },
-  { key: 'stock', label: 'Остаток на складе, шт.', type: 'number', required: true },
+  { key: 'price', label: 'Цена, сом', type: 'money', required: true, min: 0, max: 1000000 },
+  { key: 'stock', label: 'Остаток на складе, шт.', type: 'number', required: true, min: 0, max: 1000000 },
 ];
+const PHONE_PATTERN = { pattern: '^\\+996\\d{9}$', title: 'Формат: +996 и 9 цифр, например +996700123456' };
 const STAFF_CREATE_FIELDS = () => [
-  { key: 'phone', label: 'Телефон (+996…)', type: 'tel', required: true },
-  { key: 'password', label: 'Пароль (от 12 символов)', type: 'password', required: true },
+  { key: 'phone', label: 'Телефон (+996…)', type: 'tel', required: true, ...PHONE_PATTERN },
+  {
+    key: 'password',
+    label: 'Пароль (от 12 символов)',
+    type: 'password',
+    required: true,
+    minLength: 12,
+    maxLength: 128,
+  },
   {
     key: 'role',
     label: 'Роль',
@@ -341,17 +369,31 @@ const STAFF_CREATE_FIELDS = () => [
       { value: 'ADMIN', label: 'Администратор' },
     ],
   },
-  { key: 'firstName', label: 'Имя', type: 'text', required: true },
-  { key: 'lastName', label: 'Фамилия', type: 'text' },
+  { key: 'firstName', label: 'Имя', type: 'text', required: true, maxLength: 80 },
+  { key: 'lastName', label: 'Фамилия', type: 'text', maxLength: 80 },
   { key: 'storeIds', label: 'Магазины', type: 'multiselect', required: true, options: storeOptions() },
 ];
 const STAFF_UPDATE_FIELDS = () => [
   { key: 'active', label: 'Сотрудник работает', type: 'checkbox' },
-  { key: 'password', label: 'Новый пароль (оставьте пустым, если не меняется)', type: 'password' },
+  {
+    key: 'password',
+    label: 'Новый пароль (оставьте пустым, если не меняется)',
+    type: 'password',
+    minLength: 12,
+    maxLength: 128,
+  },
   { key: 'storeIds', label: 'Магазины', type: 'multiselect', options: storeOptions() },
 ];
 const PROMOTION_FIELDS = () => [
-  { key: 'code', label: 'Код промокода', type: 'text', required: true },
+  {
+    key: 'code',
+    label: 'Код промокода',
+    type: 'text',
+    required: true,
+    maxLength: 40,
+    pattern: '[A-Z0-9_-]+',
+    title: 'Только заглавные латинские буквы, цифры, _ и -',
+  },
   {
     key: 'kind',
     label: 'Тип акции',
@@ -359,13 +401,29 @@ const PROMOTION_FIELDS = () => [
     required: true,
     options: Object.entries(PROMO_KIND).map(([value, label]) => ({ value, label })),
   },
-  { key: 'value', label: 'Значение', type: 'number', hint: 'Процент (0–100) для скидки % или тыйын для фиксированной скидки' },
-  { key: 'minimumOrder', label: 'Минимальная сумма заказа, сом', type: 'money' },
+  {
+    key: 'value',
+    label: 'Значение',
+    type: 'number',
+    min: 0,
+    hint: 'Процент (0–100) для скидки % или тыйын для фиксированной скидки',
+  },
+  { key: 'minimumOrder', label: 'Минимальная сумма заказа, сом', type: 'money', min: 0, max: 1000000 },
   { key: 'startsAt', label: 'Начало действия', type: 'datetime-local', required: true },
   { key: 'endsAt', label: 'Окончание действия', type: 'datetime-local', required: true },
-  { key: 'usageLimit', label: 'Лимит использований', type: 'number', required: true },
-  { key: 'giftProductId', label: 'Товар-подарок (только для типа «Подарок»)', type: 'select', options: [{ value: '', label: '—' }, ...productOptions()] },
-  { key: 'triggerProductIds', label: 'Товары-условия (только для типа «Подарок»)', type: 'multiselect', options: productOptions() },
+  { key: 'usageLimit', label: 'Лимит использований', type: 'number', required: true, min: 1, max: 1000000 },
+  {
+    key: 'giftProductId',
+    label: 'Товар-подарок (только для типа «Подарок»)',
+    type: 'select',
+    options: [{ value: '', label: '—' }, ...productOptions()],
+  },
+  {
+    key: 'triggerProductIds',
+    label: 'Товары-условия (только для типа «Подарок»)',
+    type: 'multiselect',
+    options: productOptions(),
+  },
 ];
 const CONTENT_FIELDS = () => [
   {
@@ -375,14 +433,20 @@ const CONTENT_FIELDS = () => [
     required: true,
     options: Object.entries(CONTENT_KIND).map(([value, label]) => ({ value, label })),
   },
-  { key: 'title.ru', label: 'Заголовок (рус.)', type: 'text', required: true },
-  { key: 'title.ky', label: 'Заголовок (кырг.)', type: 'text' },
-  { key: 'title.en', label: 'Заголовок (англ.)', type: 'text' },
-  { key: 'body.ru', label: 'Текст (рус.)', type: 'textarea' },
-  { key: 'imageUrl', label: 'Ссылка на изображение (https://…)', type: 'url' },
+  { key: 'title.ru', label: 'Заголовок (рус.)', type: 'text', required: true, maxLength: 5000 },
+  { key: 'title.ky', label: 'Заголовок (кырг.)', type: 'text', maxLength: 5000 },
+  { key: 'title.en', label: 'Заголовок (англ.)', type: 'text', maxLength: 5000 },
+  { key: 'body.ru', label: 'Текст (рус.)', type: 'textarea', maxLength: 5000 },
+  {
+    key: 'imageUrl',
+    label: 'Ссылка на изображение (https://…)',
+    type: 'url',
+    pattern: 'https://.*',
+    title: 'Ссылка должна начинаться с https://',
+  },
   { key: 'productIds', label: 'Связанные товары', type: 'multiselect', options: productOptions() },
   { key: 'active', label: 'Показывать клиентам', type: 'checkbox', defaultChecked: true },
-  { key: 'sort', label: 'Порядок сортировки', type: 'number' },
+  { key: 'sort', label: 'Порядок сортировки', type: 'number', min: 0, max: 10000 },
 ];
 
 const RESOURCES = {
@@ -512,8 +576,8 @@ const RESOURCES = {
           renderForm(
             `Выплата: ${row.phone} (баланс ${money(row.balance)})`,
             [
-              { key: 'amount', label: 'Сумма, сом', type: 'money', required: true },
-              { key: 'comment', label: 'Комментарий', type: 'text' },
+              { key: 'amount', label: 'Сумма, сом', type: 'money', required: true, min: 0.01, max: row.balance / 100 },
+              { key: 'comment', label: 'Комментарий', type: 'text', maxLength: 500 },
             ],
             null,
             async body => {
@@ -639,7 +703,16 @@ async function renderCourierSettings() {
   const settings = await api('/api/v1/admin/settings');
   renderForm(
     'Тариф курьеру',
-    [{ key: 'courierDeliveryRate', label: 'За вручение или возврат в магазин, сом', type: 'money', required: true }],
+    [
+      {
+        key: 'courierDeliveryRate',
+        label: 'За вручение или возврат в магазин, сом',
+        type: 'money',
+        required: true,
+        min: 0,
+        max: 1000000,
+      },
+    ],
     settings,
     async body => {
       await api('/api/v1/admin/settings', { method: 'PUT', body: JSON.stringify(body) });
@@ -806,10 +879,17 @@ async function load() {
 }
 
 async function enterDashboard() {
+  // Session is already valid at this point — a lookup/content failure here (e.g. a transient
+  // network blip or a missing table) must show an error, not get mistaken for a bad session
+  // by the caller and wipe a perfectly good refreshToken.
   $('login').hidden = true;
   $('shell').hidden = false;
   $('logout').hidden = false;
-  await loadLookups();
+  try {
+    await loadLookups();
+  } catch (e) {
+    message(e.message);
+  }
   await load();
 }
 $('login-form').onsubmit = async e => {
