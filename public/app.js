@@ -195,6 +195,9 @@ function collectForm(form, fields) {
     if (f.type === 'number') value = Number(value);
     else if (f.type === 'money') value = Math.round(Number(value) * 100);
     else if (f.type === 'datetime-local') value = new Date(value).toISOString();
+    // Chrome keeps seconds in a time input's .value when the prefilled value had them (e.g. "09:00:00"
+    // from Postgres), but the API expects exactly "HH:MM" — strip them before sending.
+    else if (f.type === 'time') value = value.slice(0, 5);
     setPath(body, f.key, value);
   }
   return body;
@@ -305,7 +308,7 @@ const STORE_FIELDS = () => [
   { key: 'address', label: 'Адрес', type: 'text', required: true, minLength: 3, maxLength: 300 },
   { key: 'latitude', label: 'Широта', type: 'number', step: '0.0001', required: true, min: -90, max: 90 },
   { key: 'longitude', label: 'Долгота', type: 'number', step: '0.0001', required: true, min: -180, max: 180 },
-  { key: 'radiusKm', label: 'Радиус доставки, км', type: 'number', step: '0.1', required: true, min: 0.01, max: 100 },
+  { key: 'radiusKm', label: 'Радиус доставки, км', type: 'number', step: '0.1', required: true, min: 0.1, max: 100 },
   { key: 'deliveryFee', label: 'Стоимость доставки, сом', type: 'money', required: true, min: 0, max: 1000000 },
   { key: 'minimumOrder', label: 'Минимальный заказ, сом', type: 'money', min: 0, max: 1000000 },
   { key: 'opensAt', label: 'Время открытия', type: 'time', required: true },
@@ -326,10 +329,10 @@ const PRODUCT_FIELDS = () => [
   { key: 'unit', label: 'Единица продажи (например, «1 шт.»)', type: 'text', required: true, maxLength: 60 },
   { key: 'description.ru', label: 'Описание (рус.)', type: 'textarea', maxLength: 5000 },
   { key: 'composition.ru', label: 'Состав (рус.)', type: 'textarea', maxLength: 5000 },
-  { key: 'nutrition.calories', label: 'Калорийность, ккал', type: 'number', min: 0, max: 10000 },
-  { key: 'nutrition.protein', label: 'Белки, г', type: 'number', min: 0, max: 1000 },
-  { key: 'nutrition.fat', label: 'Жиры, г', type: 'number', min: 0, max: 1000 },
-  { key: 'nutrition.carbohydrates', label: 'Углеводы, г', type: 'number', min: 0, max: 1000 },
+  { key: 'nutrition.calories', label: 'Калорийность, ккал', type: 'number', step: 'any', min: 0, max: 10000 },
+  { key: 'nutrition.protein', label: 'Белки, г', type: 'number', step: 'any', min: 0, max: 1000 },
+  { key: 'nutrition.fat', label: 'Жиры, г', type: 'number', step: 'any', min: 0, max: 1000 },
+  { key: 'nutrition.carbohydrates', label: 'Углеводы, г', type: 'number', step: 'any', min: 0, max: 1000 },
   {
     key: 'imageUrl',
     label: 'Ссылка на изображение (https://…)',
