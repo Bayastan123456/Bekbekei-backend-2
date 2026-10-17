@@ -1,16 +1,16 @@
 import pg from 'pg';
-export type Row = Record<string, any>;
+export type Row = Record<string, unknown>;
 export interface SQL {
-  query<T extends Row = Row>(sql: string, args?: any[]): Promise<{ rows: T[]; rowCount: number }>;
+  query<T extends object = Row>(sql: string, args?: unknown[]): Promise<{ rows: T[]; rowCount: number }>;
 }
 export interface Database extends SQL {
   transaction<T>(fn: (tx: SQL) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 export function postgres(url: string): Database {
-  const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 5000, statement_timeout: 15000 });
+  const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 20000, statement_timeout: 15000 });
   const adapt = (client: pg.Pool | pg.PoolClient): SQL => ({
-    async query<T extends Row>(sql: string, args: any[] = []) {
+    async query<T extends object>(sql: string, args: unknown[] = []) {
       const raw = await client.query(sql, args);
       const result = Array.isArray(raw) ? raw.at(-1)! : raw;
       return { rows: result.rows as T[], rowCount: result.rowCount ?? 0 };
@@ -35,6 +35,6 @@ export function postgres(url: string): Database {
     close: () => pool.end(),
   };
 }
-export async function one<T extends Row = Row>(db: SQL, sql: string, args: any[] = []): Promise<T | undefined> {
+export async function one<T extends object = Row>(db: SQL, sql: string, args: unknown[] = []): Promise<T | undefined> {
   return (await db.query<T>(sql, args)).rows[0];
 }

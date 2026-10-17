@@ -831,6 +831,12 @@ function renderSummary(data) {
     counts.append(stat);
   }
   area.append(counts);
+  if (data.jobHealth) {
+    const health = document.createElement('p');
+    const oldest = data.jobHealth.oldestDueAt ? new Date(data.jobHealth.oldestDueAt).toLocaleString('ru-RU') : 'нет';
+    health.textContent = `Фоновые задачи: ошибок после 10 попыток — ${data.jobHealth.failed}; задержаны больше 5 минут — ${data.jobHealth.overdue}. Самая ранняя ожидающая задача: ${oldest}.`;
+    area.append(health);
+  }
   const lowStockHeading = document.createElement('h2');
   lowStockHeading.textContent = 'Товары на исходе (меньше 5 шт.)';
   area.append(

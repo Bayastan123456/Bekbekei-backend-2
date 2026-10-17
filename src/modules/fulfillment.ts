@@ -1,3 +1,6 @@
+import { pickingActionSchema } from '../schemas/fulfillment.js';
+import { assignedStore, stockLock, courierRate, handlePickingItem } from '../services/fulfillment.js';
+import type { CourierShift, DeliveryTask, Order, OrderItem, PickingTask } from '../models.js';
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -5,6 +8,7 @@ import { one, type Database, type SQL } from '../db.js';
 import { assert, event, page, uuid } from '../core.js';
 import { authentication, roles, type Actor } from './auth.js';
 import {
+  inventoryProductId,
   accessOrder,
   cancelOrder,
   enqueueRefund,
@@ -12,25 +16,7 @@ import {
   recalculate,
   releaseInventory,
   setStatus,
-} from './orders.js';
-export async function courierRate(tx: SQL) {
-  const row = await one(tx, "SELECT value FROM settings WHERE key='courier_delivery_rate'", []);
-  return row ? Number(row.value) : 8000;
-}
-export async function assignedStore(tx: SQL, actor: Actor, storeId: string) {
-  assert(
-    await one(tx, 'SELECT 1 FROM staff_stores WHERE user_id=$1 AND store_id=$2', [actor.id, storeId]),
-    403,
-    'STORE_FORBIDDEN',
-    'Нет доступа к этому магазину',
-  );
-}
-async function stockLock(tx: SQL, storeId: string, ids: string[]) {
-  return tx.query(
-    'SELECT * FROM store_products WHERE store_id=$1 AND product_id=ANY($2::uuid[]) ORDER BY product_id FOR UPDATE',
-    [storeId, [...new Set(ids)].sort()],
-  );
-}
+} from '../services/orders.js';
 export function pickingRoutes(db: Database) {
   const r = Router();
   r.use(authentication(db), roles('PICKER'));
@@ -52,10 +38,10 @@ export function pickingRoutes(db: Database) {
   r.post('/tasks/:id/claim', async (req, res) => {
     const id = uuid.parse(req.params.id);
     await db.transaction(async tx => {
-      const o = await one(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
+      const o = await one<Order>(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
       assert(o, 404, 'NOT_FOUND', 'Заказ не найден');
       await assignedStore(tx, req.actor, o.store_id);
-      const task = (await one(tx, 'SELECT * FROM picking_tasks WHERE order_id=$1', [id]))!;
+      const task = (await one<PickingTask>(tx, 'SELECT * FROM picking_tasks WHERE order_id=$1', [id]))!;
       if (task.picker_id === req.actor.id && o.status === 'PICKING') return;
       assert(o.status === 'CONFIRMED' && !task.picker_id, 409, 'ALREADY_CLAIMED', 'Заказ уже занят или недоступен');
       await tx.query('UPDATE picking_tasks SET picker_id=$2,claimed_at=now() WHERE order_id=$1', [id, req.actor.id]);
@@ -71,71 +57,8 @@ export function pickingRoutes(db: Database) {
   r.patch('/tasks/:id/items/:itemId', async (req, res) => {
     const id = uuid.parse(req.params.id),
       itemId = uuid.parse(req.params.itemId);
-    const b = z
-      .discriminatedUnion('action', [
-        z.object({ action: z.literal('PICK') }),
-        z.object({ action: z.literal('EXCLUDE') }),
-        z.object({ action: z.literal('PROPOSE_REPLACEMENT'), productId: uuid }),
-      ])
-      .parse(req.body);
-    await db.transaction(async tx => {
-      const o = await accessOrder(tx, id, req.actor, true);
-      assert(o.status === 'PICKING', 409, 'INVALID_STATE', 'Заказ не собирается');
-      const i = await one(tx, 'SELECT * FROM order_items WHERE id=$1 AND order_id=$2', [itemId, id]);
-      assert(i, 404, 'NOT_FOUND', 'Позиция не найдена');
-      if (b.action === 'PICK' && i.picking_status === 'PICKED') return;
-      if (b.action === 'EXCLUDE' && i.picking_status === 'EXCLUDED') return;
-      assert(
-        i.picking_status === 'PENDING' && i.replacement_status !== 'PROPOSED',
-        409,
-        'ITEM_ALREADY_HANDLED',
-        'Позиция уже обработана или ожидает согласования',
-      );
-      if (b.action === 'PICK') await tx.query("UPDATE order_items SET picking_status='PICKED' WHERE id=$1", [itemId]);
-      if (b.action === 'EXCLUDE') {
-        await tx.query('UPDATE store_products SET reserved=reserved-$3 WHERE store_id=$1 AND product_id=$2', [
-          o.store_id,
-          i.product_id,
-          i.reserved_quantity,
-        ]);
-        await tx.query("UPDATE order_items SET picking_status='EXCLUDED',reserved_quantity=0 WHERE id=$1", [itemId]);
-        await recalculate(tx, o);
-      }
-      if (b.action === 'PROPOSE_REPLACEMENT') {
-        assert(b.productId !== i.product_id, 422, 'SAME_PRODUCT', 'Выберите другой товар');
-        assert(i.unit_price > 0, 422, 'GIFT_REPLACEMENT', 'Подарок можно только исключить');
-        await stockLock(tx, o.store_id, [i.product_id, b.productId]);
-        const replacement = await one(
-          tx,
-          'SELECT p.*,sp.price,sp.stock-sp.reserved available FROM products p JOIN store_products sp ON sp.product_id=p.id WHERE p.id=$1 AND sp.store_id=$2 AND p.active',
-          [b.productId, o.store_id],
-        );
-        assert(replacement && replacement.available >= i.quantity, 409, 'INSUFFICIENT_STOCK', 'Замена недоступна');
-        assert(!replacement.age_restricted, 422, 'AGE_RESTRICTED_REPLACEMENT', 'Замена на товар 18+ недоступна');
-        assert(
-          o.payment_method !== 'QR' || replacement.price <= i.unit_price,
-          422,
-          'REPLACEMENT_TOO_EXPENSIVE',
-          'Для предоплаты замена должна быть не дороже',
-        );
-        await tx.query('UPDATE store_products SET reserved=reserved+$3 WHERE store_id=$1 AND product_id=$2', [
-          o.store_id,
-          b.productId,
-          i.quantity,
-        ]);
-        await tx.query(
-          "UPDATE order_items SET replacement_product_id=$2,replacement_price=$3,replacement_name=$4,replacement_status='PROPOSED' WHERE id=$1",
-          [itemId, b.productId, replacement.price, JSON.stringify(replacement.name)],
-        );
-        await event(
-          tx,
-          'replacement.proposed',
-          { orderId: id, itemId, productId: b.productId, price: replacement.price },
-          o.user_id,
-        );
-      }
-      await event(tx, 'picking.item', { orderId: id, itemId, action: b.action }, o.user_id);
-    });
+    const b = pickingActionSchema.parse(req.body);
+    await handlePickingItem(db, req.actor, id, itemId, b);
     res.json({ data: await orderDetail(db, id) });
   });
   r.post('/tasks/:id/complete', async (req, res) => {
@@ -144,7 +67,7 @@ export function pickingRoutes(db: Database) {
       const o = await accessOrder(tx, id, req.actor, true);
       if (o.status === 'READY') return;
       assert(o.status === 'PICKING', 409, 'INVALID_STATE', 'Заказ не собирается');
-      const items = (await tx.query('SELECT * FROM order_items WHERE order_id=$1', [id])).rows;
+      const items = (await tx.query<OrderItem>('SELECT * FROM order_items WHERE order_id=$1', [id])).rows;
       assert(
         items.every(i => i.picking_status !== 'PENDING' && i.replacement_status !== 'PROPOSED'),
         409,
@@ -173,9 +96,14 @@ export function replacementRoutes(db: Database) {
     await db.transaction(async tx => {
       const o = await accessOrder(tx, id, req.actor, true);
       assert(o.status === 'PICKING', 409, 'INVALID_STATE', 'Заказ не собирается');
-      const i = await one(tx, 'SELECT * FROM order_items WHERE id=$1 AND order_id=$2', [itemId, id]);
+      const i = await one<OrderItem>(tx, 'SELECT * FROM order_items WHERE id=$1 AND order_id=$2', [itemId, id]);
       assert(i, 404, 'NOT_FOUND', 'Позиция не найдена');
-      assert(i.replacement_status === 'PROPOSED', 409, 'NO_REPLACEMENT', 'Нет предложения замены');
+      assert(
+        i.replacement_status === 'PROPOSED' && i.replacement_product_id,
+        409,
+        'NO_REPLACEMENT',
+        'Нет предложения замены',
+      );
       await stockLock(tx, o.store_id, [i.product_id, i.replacement_product_id]);
       if (b.accept) {
         await tx.query('UPDATE store_products SET reserved=reserved-$3 WHERE store_id=$1 AND product_id=$2', [
@@ -203,7 +131,7 @@ export function replacementRoutes(db: Database) {
 }
 async function courierTask(tx: SQL, id: string, actor: Actor) {
   const o = await accessOrder(tx, id, actor, true),
-    task = (await one(tx, 'SELECT * FROM delivery_tasks WHERE order_id=$1', [id]))!;
+    task = (await one<DeliveryTask>(tx, 'SELECT * FROM delivery_tasks WHERE order_id=$1', [id]))!;
   return { o, task };
 }
 export function deliveryRoutes(db: Database) {
@@ -235,14 +163,16 @@ export function deliveryRoutes(db: Database) {
     const id = uuid.parse(req.params.id);
     await db.transaction(async tx => {
       await tx.query('SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE', [req.actor.id]);
-      const shift = await one(tx, 'SELECT * FROM courier_shifts WHERE courier_id=$1 AND ended_at IS NULL', [
-        req.actor.id,
-      ]);
+      const shift = await one<CourierShift>(
+        tx,
+        'SELECT * FROM courier_shifts WHERE courier_id=$1 AND ended_at IS NULL',
+        [req.actor.id],
+      );
       assert(shift, 409, 'NOT_ON_SHIFT', 'Начните смену');
-      const o = await one(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
+      const o = await one<Order>(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
       assert(o, 404, 'NOT_FOUND', 'Заказ не найден');
       await assignedStore(tx, req.actor, o.store_id);
-      const task = (await one(tx, 'SELECT * FROM delivery_tasks WHERE order_id=$1', [id]))!;
+      const task = (await one<DeliveryTask>(tx, 'SELECT * FROM delivery_tasks WHERE order_id=$1', [id]))!;
       if (task.courier_id === req.actor.id && ['CONFIRMED', 'PICKING', 'READY'].includes(o.status)) return;
       assert(
         ['CONFIRMED', 'PICKING', 'READY'].includes(o.status) && !task.courier_id,
@@ -281,7 +211,7 @@ export function deliveryRoutes(db: Database) {
       if (o.status === 'DELIVERING') return;
       assert(o.status === 'READY', 409, 'NOT_READY', 'Заказ ещё не собран');
       const items = (
-        await tx.query(
+        await tx.query<OrderItem>(
           "SELECT * FROM order_items WHERE order_id=$1 AND picking_status<>'EXCLUDED' ORDER BY product_id",
           [id],
         )
@@ -289,12 +219,12 @@ export function deliveryRoutes(db: Database) {
       await stockLock(
         tx,
         o.store_id,
-        items.map(i => (i.replacement_status === 'ACCEPTED' ? i.replacement_product_id : i.product_id)),
+        items.map(i => inventoryProductId(i)),
       );
       for (const i of items)
         await tx.query(
           'UPDATE store_products SET stock=stock-$3,reserved=reserved-$3 WHERE store_id=$1 AND product_id=$2',
-          [o.store_id, i.replacement_status === 'ACCEPTED' ? i.replacement_product_id : i.product_id, i.quantity],
+          [o.store_id, inventoryProductId(i), i.quantity],
         );
       await tx.query('UPDATE order_items SET reserved_quantity=0 WHERE order_id=$1', [id]);
       await tx.query('UPDATE delivery_tasks SET picked_up_at=now() WHERE order_id=$1', [id]);
@@ -386,90 +316,6 @@ export function deliveryRoutes(db: Database) {
       await setStatus(tx, o, 'RETURNED', req.actor.id);
     });
     res.json({ data: await orderDetail(db, id) });
-  });
-  return r;
-}
-export function shiftRoutes(db: Database) {
-  const r = Router();
-  r.use(authentication(db), roles('COURIER'));
-  r.post('/shifts/start', async (req, res) => {
-    const shift = await db.transaction(async tx => {
-      await tx.query('SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE', [req.actor.id]);
-      const existing = await one(tx, 'SELECT * FROM courier_shifts WHERE courier_id=$1 AND ended_at IS NULL', [
-        req.actor.id,
-      ]);
-      return (
-        existing ??
-        (await one(tx, 'INSERT INTO courier_shifts(id,courier_id) VALUES($1,$2) RETURNING *', [
-          randomUUID(),
-          req.actor.id,
-        ]))
-      );
-    });
-    res.json({ data: shift });
-  });
-  r.post('/shifts/end', async (req, res) => {
-    await db.transaction(async tx => {
-      await tx.query('SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE', [req.actor.id]);
-      assert(
-        !(await one(
-          tx,
-          "SELECT 1 FROM delivery_tasks dt JOIN orders o ON o.id=dt.order_id WHERE dt.courier_id=$1 AND o.status NOT IN ('DELIVERED','CANCELLED','RETURNED')",
-          [req.actor.id],
-        )),
-        409,
-        'ACTIVE_DELIVERY',
-        'Завершите текущий заказ',
-      );
-      await tx.query('UPDATE courier_shifts SET ended_at=now() WHERE courier_id=$1 AND ended_at IS NULL', [
-        req.actor.id,
-      ]);
-    });
-    res.status(204).end();
-  });
-  r.get('/statistics', async (req, res) => {
-    const period = z.enum(['today', 'week', 'month']).parse(req.query.period ?? 'today');
-    const day = period === 'today' ? 'day' : period;
-    const stats = await one(
-      db,
-      `SELECT count(*)::int orders,COALESCE(sum(amount),0)::int earnings,COALESCE(avg(amount),0)::int average_earning FROM courier_earnings WHERE courier_id=$1 AND created_at>=date_trunc($2,now() AT TIME ZONE 'Asia/Bishkek') AT TIME ZONE 'Asia/Bishkek'`,
-      [req.actor.id, day],
-    );
-    const rating = await one(
-      db,
-      'SELECT avg(score)::float rating,count(*)::int ratings FROM ratings WHERE courier_id=$1',
-      [req.actor.id],
-    );
-    res.json({
-      data: {
-        ...stats,
-        ...rating,
-        currency: 'KGS',
-        shift: await one(db, 'SELECT * FROM courier_shifts WHERE courier_id=$1 AND ended_at IS NULL', [req.actor.id]),
-      },
-    });
-  });
-  r.get('/balance', async (req, res) => {
-    const earned = await one(db, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_earnings WHERE courier_id=$1', [
-      req.actor.id,
-    ]);
-    const paid = await one(db, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_payouts WHERE courier_id=$1', [
-      req.actor.id,
-    ]);
-    res.json({
-      data: { earned: earned!.s, paid: paid!.s, balance: earned!.s - paid!.s, currency: 'KGS' },
-    });
-  });
-  r.get('/history', async (req, res) => {
-    const p = page(req.query);
-    res.json({
-      data: (
-        await db.query(
-          `SELECT o.id,o.number,o.status,o.address_snapshot,dt.completed_at,ce.amount earning,r.score FROM delivery_tasks dt JOIN orders o ON o.id=dt.order_id LEFT JOIN courier_earnings ce ON ce.order_id=o.id LEFT JOIN ratings r ON r.order_id=o.id WHERE dt.courier_id=$1 AND o.status IN ('DELIVERED','RETURNED','CANCELLED') ORDER BY o.updated_at DESC LIMIT $2 OFFSET $3`,
-          [req.actor.id, p.limit, p.offset],
-        )
-      ).rows,
-    });
   });
   return r;
 }

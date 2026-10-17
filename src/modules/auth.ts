@@ -1,10 +1,11 @@
+import type { Actor, OtpChallenge, Session, User } from '../models.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import { Router, type RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { one, type Database, type SQL, type Row } from '../db.js';
+import { one, type Database, type SQL } from '../db.js';
 import { assert, equal, otpHash, passwordValid, phone, sha, token, type Config } from '../core.js';
-export type Actor = Row & { id: string; role: 'CUSTOMER' | 'PICKER' | 'COURIER' | 'ADMIN'; session_id: string };
+export type { Actor } from '../models.js';
 // Dev convenience only: lets ADMIN read the current OTP for a phone instead of tailing the server log.
 // Reachable only while smsProvider is 'log', which config() already forbids in production.
 const devOtpCodes = new Map<string, { code: string; expiresAt: number }>();
@@ -96,7 +97,9 @@ export function authRoutes(db: Database, cfg: Config) {
       .parse(req.body);
     // Failure is returned from the transaction so attempts are committed before throwing.
     const result = await db.transaction(async tx => {
-      const challenge = await one(tx, 'SELECT * FROM otp_challenges WHERE phone=$1 FOR UPDATE', [body.phone]);
+      const challenge = await one<OtpChallenge>(tx, 'SELECT * FROM otp_challenges WHERE phone=$1 FOR UPDATE', [
+        body.phone,
+      ]);
       if (
         !challenge ||
         challenge.consumed_at ||
@@ -111,7 +114,11 @@ export function authRoutes(db: Database, cfg: Config) {
         randomUUID(),
         body.phone,
       ]);
-      const user = await one(tx, 'SELECT id,role,active FROM users WHERE phone=$1 FOR NO KEY UPDATE', [body.phone]);
+      const user = await one<Pick<User, 'id' | 'role' | 'active'>>(
+        tx,
+        'SELECT id,role,active FROM users WHERE phone=$1 FOR NO KEY UPDATE',
+        [body.phone],
+      );
       if (!user?.active || user.role !== 'CUSTOMER') return null;
       return { ...(await newSession(tx, user.id)), user: { id: user.id, role: user.role } };
     });
@@ -125,9 +132,11 @@ export function authRoutes(db: Database, cfg: Config) {
       .strict()
       .parse(req.body);
     const session = await db.transaction(async tx => {
-      const user = await one(tx, 'SELECT id,role,password_hash,active FROM users WHERE phone=$1 FOR NO KEY UPDATE', [
-        body.phone,
-      ]);
+      const user = await one<Pick<User, 'id' | 'role' | 'password_hash' | 'active'>>(
+        tx,
+        'SELECT id,role,password_hash,active FROM users WHERE phone=$1 FOR NO KEY UPDATE',
+        [body.phone],
+      );
       assert(
         user?.active &&
           user.role !== 'CUSTOMER' &&
@@ -147,10 +156,12 @@ export function authRoutes(db: Database, cfg: Config) {
       .strict()
       .parse(req.body);
     const result = await db.transaction(async tx => {
-      const lookup = await one(tx, 'SELECT user_id FROM sessions WHERE refresh_hash=$1', [sha(body.refreshToken)]);
+      const lookup = await one<Pick<Session, 'user_id'>>(tx, 'SELECT user_id FROM sessions WHERE refresh_hash=$1', [
+        sha(body.refreshToken),
+      ]);
       assert(lookup, 401, 'INVALID_REFRESH', 'Сеанс истёк');
       await tx.query('SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE', [lookup.user_id]);
-      const session = await one(
+      const session = await one<Session>(
         tx,
         `SELECT s.* FROM sessions s JOIN users u ON u.id=s.user_id
         WHERE refresh_hash=$1 AND revoked_at IS NULL AND refresh_expires_at>now() AND u.active FOR UPDATE OF s`,

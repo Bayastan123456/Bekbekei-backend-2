@@ -1,7 +1,7 @@
-import { PGlite } from '@electric-sql/pglite';
+import { PGlite, type Transaction } from '@electric-sql/pglite';
 import pg from 'pg';
 import { randomUUID } from 'node:crypto';
-import { postgres, type Database, type SQL, type Row } from '../src/db.js';
+import { postgres, type Database, type SQL } from '../src/db.js';
 export async function testDatabase(): Promise<Database> {
   if (process.env.TEST_DATABASE_URL) {
     const schema = `test_${randomUUID().replaceAll('-', '')}`,
@@ -21,15 +21,15 @@ export async function testDatabase(): Promise<Database> {
   }
   const pgLite = new PGlite();
   await pgLite.waitReady;
-  const adapt = (client: any): SQL => ({
-    async query<T extends Row>(sql: string, args: any[] = []) {
+  const adapt = (client: Pick<Transaction, 'query' | 'exec'>): SQL => ({
+    async query<T extends object>(sql: string, args: unknown[] = []) {
       if (!args.length && sql.split(';').filter(x => x.trim()).length > 1) {
         const result = await client.exec(sql);
         const last = result.at(-1);
-        return { rows: last?.rows ?? [], rowCount: last?.affectedRows ?? 0 };
+        return { rows: (last?.rows ?? []) as T[], rowCount: last?.affectedRows ?? 0 };
       }
-      const result = await client.query(sql, args);
-      return { rows: result.rows as T[], rowCount: result.affectedRows ?? result.rows.length };
+      const result = await client.query<T>(sql, args);
+      return { rows: result.rows, rowCount: result.affectedRows ?? result.rows.length };
     },
   });
   return { ...adapt(pgLite), transaction: fn => pgLite.transaction(tx => fn(adapt(tx))), close: () => pgLite.close() };

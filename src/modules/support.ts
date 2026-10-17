@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { one, type Database } from '../db.js';
 import { assert, event, page, uuid } from '../core.js';
 import { authentication } from './auth.js';
-import { accessOrder } from './orders.js';
+import { accessOrder } from '../services/orders.js';
 export function supportRoutes(db: Database) {
   const r = Router();
   r.use(authentication(db));
@@ -67,11 +67,11 @@ export function supportRoutes(db: Database) {
         .strict()
         .parse(req.body);
     const message = await db.transaction(async tx => {
-      const thread = await one(tx, 'SELECT * FROM support_threads WHERE id=$1 AND ($2 OR user_id=$3) FOR UPDATE', [
-        id,
-        req.actor.role === 'ADMIN',
-        req.actor.id,
-      ]);
+      const thread = await one<{ id: string; user_id: string; status: 'OPEN' | 'CLOSED' }>(
+        tx,
+        'SELECT * FROM support_threads WHERE id=$1 AND ($2 OR user_id=$3) FOR UPDATE',
+        [id, req.actor.role === 'ADMIN', req.actor.id],
+      );
       assert(thread, 404, 'NOT_FOUND', 'Обращение не найдено');
       assert(thread.status === 'OPEN', 409, 'THREAD_CLOSED', 'Обращение закрыто');
       const m = await one(
@@ -91,10 +91,11 @@ export function supportRoutes(db: Database) {
       .object({ status: z.enum(['OPEN', 'CLOSED']) })
       .strict()
       .parse(req.body);
-    const thread = await one(db, 'UPDATE support_threads SET status=$2 WHERE id=$1 RETURNING *', [
-      uuid.parse(req.params.id),
-      b.status,
-    ]);
+    const thread = await one<{ id: string; user_id: string; status: 'OPEN' | 'CLOSED' }>(
+      db,
+      'UPDATE support_threads SET status=$2 WHERE id=$1 RETURNING *',
+      [uuid.parse(req.params.id), b.status],
+    );
     assert(thread, 404, 'NOT_FOUND', 'Обращение не найдено');
     res.json({ data: thread });
   });

@@ -1,10 +1,12 @@
+import type { Order, Payment } from '../models.js';
+import { idempotencyKey } from '../schemas/orders.js';
 import { Router, type RequestHandler } from 'express';
 import { randomUUID, createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { one, type Database } from '../db.js';
 import { assert, equal, event, sha, uuid, type Config } from '../core.js';
 import { authentication, roles } from './auth.js';
-import { accessOrder, cancelOrder, enqueueRefund, idempotencyKey, setStatus } from './orders.js';
+import { accessOrder, cancelOrder, enqueueRefund, setStatus } from '../services/orders.js';
 export const paymentEventSchema = z
   .object({
     eventId: z.string().min(8).max(128),
@@ -15,9 +17,9 @@ export const paymentEventSchema = z
   .strict();
 export async function processPaymentEvent(db: Database, b: z.infer<typeof paymentEventSchema>) {
   return db.transaction(async tx => {
-    const payment = await one(tx, 'SELECT * FROM payments WHERE id=$1', [b.paymentId]);
+    const payment = await one<Payment>(tx, 'SELECT * FROM payments WHERE id=$1', [b.paymentId]);
     assert(payment, 404, 'NOT_FOUND', 'Платёж не найден');
-    const order = (await one(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [payment.order_id]))!;
+    const order = (await one<Order>(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [payment.order_id]))!;
     const previous = await one(tx, 'SELECT * FROM payment_events WHERE provider_event_id=$1', [b.eventId]);
     const hash = sha(JSON.stringify(b));
     if (previous) {
@@ -30,7 +32,7 @@ export async function processPaymentEvent(db: Database, b: z.infer<typeof paymen
       b.paymentId,
       hash,
     ]);
-    const current = (await one(tx, 'SELECT * FROM payments WHERE id=$1 FOR UPDATE', [payment.id]))!;
+    const current = (await one<Payment>(tx, 'SELECT * FROM payments WHERE id=$1 FOR UPDATE', [payment.id]))!;
     if (current.status === 'PAID') return { duplicate: true };
     if (b.status === 'FAILED') {
       if (current.status === 'PENDING') await tx.query("UPDATE payments SET status='FAILED' WHERE id=$1", [payment.id]);
@@ -49,7 +51,7 @@ export async function processPaymentEvent(db: Database, b: z.infer<typeof paymen
         );
       return { duplicate: false, refundPending: true };
     }
-    if (order.status === 'AWAITING_PAYMENT' && +new Date(order.expires_at) <= Date.now()) {
+    if (order.status === 'AWAITING_PAYMENT' && order.expires_at && +new Date(order.expires_at) <= Date.now()) {
       await cancelOrder(tx, order, null);
       await enqueueRefund(tx, { ...order, payment_status: 'PAID' }, payment.amount);
       await tx.query(
@@ -95,15 +97,21 @@ export function paymentRoutes(db: Database, cfg: Config) {
       key = idempotencyKey(req.headers['idempotency-key']);
     const payment = await db.transaction(async tx => {
       const o = await accessOrder(tx, id, req.actor, true);
-      const existing = await one(tx, 'SELECT * FROM payments WHERE order_id=$1 AND idempotency_key=$2', [id, key]);
+      const existing = await one<Payment>(tx, 'SELECT * FROM payments WHERE order_id=$1 AND idempotency_key=$2', [
+        id,
+        key,
+      ]);
       if (existing) return existing;
       assert(
-        o.status === 'AWAITING_PAYMENT' && o.payment_method === 'QR' && +new Date(o.expires_at) > Date.now(),
+        o.status === 'AWAITING_PAYMENT' &&
+          o.payment_method === 'QR' &&
+          o.expires_at &&
+          +new Date(o.expires_at) > Date.now(),
         409,
         'NOT_AWAITING_PAYMENT',
         'Заказ не ожидает оплату',
       );
-      const pending = await one(tx, "SELECT * FROM payments WHERE order_id=$1 AND status='PENDING'", [id]);
+      const pending = await one<Payment>(tx, "SELECT * FROM payments WHERE order_id=$1 AND status='PENDING'", [id]);
       if (pending) return pending;
       return (await one(
         tx,
@@ -121,14 +129,14 @@ export function paymentRoutes(db: Database, cfg: Config) {
     });
   });
   r.get('/payments/:id', async (req, res) => {
-    const p = await one(db, 'SELECT * FROM payments WHERE id=$1', [uuid.parse(req.params.id)]);
+    const p = await one<Payment>(db, 'SELECT * FROM payments WHERE id=$1', [uuid.parse(req.params.id)]);
     assert(p, 404, 'NOT_FOUND', 'Платёж не найден');
     await accessOrder(db, p.order_id, req.actor);
     res.json({ data: p });
   });
   r.post('/payments/:id/mock-confirm', roles('ADMIN'), async (req, res) => {
     assert(cfg.env !== 'production' && cfg.paymentProvider === 'mock', 404, 'NOT_FOUND', 'Недоступно');
-    const p = await one(db, 'SELECT * FROM payments WHERE id=$1', [uuid.parse(req.params.id)]);
+    const p = await one<Payment>(db, 'SELECT * FROM payments WHERE id=$1', [uuid.parse(req.params.id)]);
     assert(p, 404, 'NOT_FOUND', 'Платёж не найден');
     const b = z
       .object({ status: z.enum(['PAID', 'FAILED']).default('PAID') })

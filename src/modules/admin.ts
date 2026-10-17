@@ -1,70 +1,15 @@
+import { jobHealth, jobAttemptLimit } from '../services/maintenance.js';
+import type { Job, Order, Payment, Promotion, Refund, Store } from '../models.js';
+import { localized, optionalLocalized, imageUrl, productSchema, storeSchema } from '../schemas/admin.js';
+import { audit } from '../services/audit.js';
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { one, type Database, type SQL } from '../db.js';
+import { one, type Database } from '../db.js';
 import { assert, money, page, passwordHash, phone, uuid, type Config } from '../core.js';
 import { authentication, devOtpSnapshot, roles } from './auth.js';
-import { cancelOrder, orderDetail, setStatus } from './orders.js';
+import { cancelOrder, orderDetail, setStatus } from '../services/orders.js';
 
-export const localized = z
-  .object({ ru: z.string().min(1).max(5000), ky: z.string().max(5000).optional(), en: z.string().max(5000).optional() })
-  .strict();
-const optionalLocalized = z
-  .object({
-    ru: z.string().max(5000).optional(),
-    ky: z.string().max(5000).optional(),
-    en: z.string().max(5000).optional(),
-  })
-  .strict();
-const imageUrl = z
-  .url()
-  .refine(v => v.startsWith('https://'), 'Изображение должно иметь HTTPS URL')
-  .nullable()
-  .optional();
-const productSchema = z
-  .object({
-    categoryId: uuid,
-    name: localized,
-    description: optionalLocalized.default({}),
-    composition: optionalLocalized.default({}),
-    nutrition: z
-      .object({
-        calories: z.number().min(0).max(10000).optional(),
-        protein: z.number().min(0).max(1000).optional(),
-        fat: z.number().min(0).max(1000).optional(),
-        carbohydrates: z.number().min(0).max(1000).optional(),
-      })
-      .strict()
-      .default({}),
-    unit: z.string().min(1).max(60),
-    imageUrl,
-    isNew: z.boolean().default(false),
-    ageRestricted: z.boolean().default(false),
-    active: z.boolean().default(true),
-  })
-  .strict();
-const storeSchema = z
-  .object({
-    name: z.string().min(1).max(150),
-    address: z.string().min(3).max(300),
-    latitude: z.number().min(-90).max(90),
-    longitude: z.number().min(-180).max(180),
-    radiusKm: z.number().positive().max(100),
-    deliveryFee: money,
-    minimumOrder: money.default(0),
-    opensAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-    closesAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-    active: z.boolean().default(true),
-  })
-  .strict();
-async function audit(tx: SQL, userId: string, action: string, id: string, payload: unknown = {}) {
-  await tx.query('INSERT INTO audit_logs(actor_id,action,entity_id,payload) VALUES($1,$2,$3,$4)', [
-    userId,
-    action,
-    id,
-    JSON.stringify(payload),
-  ]);
-}
 export function adminRoutes(db: Database, cfg: Config) {
   const r = Router();
   r.use(authentication(db), roles('ADMIN'));
@@ -75,6 +20,7 @@ export function adminRoutes(db: Database, cfg: Config) {
   r.get('/summary', async (_req, res) =>
     res.json({
       data: {
+        jobHealth: await jobHealth(db),
         orders: (await db.query('SELECT status,count(*)::int count FROM orders GROUP BY status')).rows,
         lowStock: (
           await db.query(
@@ -82,7 +28,10 @@ export function adminRoutes(db: Database, cfg: Config) {
           )
         ).rows,
         failedJobs: (
-          await db.query('SELECT id,kind,attempts,last_error FROM jobs WHERE completed_at IS NULL AND attempts>=10')
+          await db.query(
+            'SELECT id,kind,attempts,last_error FROM jobs WHERE completed_at IS NULL AND attempts >= $1 ORDER BY run_at LIMIT 100',
+            [jobAttemptLimit],
+          )
         ).rows,
       },
     }),
@@ -105,7 +54,7 @@ export function adminRoutes(db: Database, cfg: Config) {
       .parse(req.query.status);
     res.json({
       data: (
-        await db.query(
+        await db.query<Order>(
           'SELECT * FROM orders WHERE ($1::text IS NULL OR status=$1) ORDER BY created_at DESC LIMIT $2 OFFSET $3',
           [status ?? null, p.limit, p.offset],
         )
@@ -118,7 +67,7 @@ export function adminRoutes(db: Database, cfg: Config) {
   r.post('/orders/:id/cancel', async (req, res) => {
     const id = uuid.parse((req.params as Record<string, string>).id);
     await db.transaction(async tx => {
-      const o = await one(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
+      const o = await one<Order>(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
       assert(o, 404, 'NOT_FOUND', 'Заказ не найден');
       if (o.status !== 'CANCELLED') await cancelOrder(tx, o, req.actor.id);
       await audit(tx, req.actor.id, 'CANCEL_ORDER', id);
@@ -128,7 +77,7 @@ export function adminRoutes(db: Database, cfg: Config) {
   r.post('/orders/:id/authorize-return', async (req, res) => {
     const id = uuid.parse((req.params as Record<string, string>).id);
     await db.transaction(async tx => {
-      const o = await one(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
+      const o = await one<Order>(tx, 'SELECT * FROM orders WHERE id=$1 FOR UPDATE', [id]);
       assert(o, 404, 'NOT_FOUND', 'Заказ не найден');
       assert(o.status === 'DELIVERING', 409, 'INVALID_STATE', 'Заказ не в доставке');
       assert(
@@ -143,7 +92,7 @@ export function adminRoutes(db: Database, cfg: Config) {
     res.status(204).end();
   });
   r.get('/stores', async (_req, res) =>
-    res.json({ data: (await db.query('SELECT * FROM stores ORDER BY name')).rows }),
+    res.json({ data: (await db.query<Store>('SELECT * FROM stores ORDER BY name')).rows }),
   );
   for (const method of ['post', 'put'] as const)
     r[method](method === 'post' ? '/stores' : '/stores/:id', async (req, res) => {
@@ -399,7 +348,7 @@ export function adminRoutes(db: Database, cfg: Config) {
     res.status(204).end();
   });
   r.get('/promotions', async (_req, res) =>
-    res.json({ data: (await db.query('SELECT * FROM promotions ORDER BY starts_at DESC')).rows }),
+    res.json({ data: (await db.query<Promotion>('SELECT * FROM promotions ORDER BY starts_at DESC')).rows }),
   );
   r.post('/promotions', async (req, res) => {
     const b = z
@@ -512,21 +461,27 @@ export function adminRoutes(db: Database, cfg: Config) {
   r.get('/refunds', async (req, res) => {
     const p = page(req.query);
     res.json({
-      data: (await db.query('SELECT * FROM refunds ORDER BY created_at DESC LIMIT $1 OFFSET $2', [p.limit, p.offset]))
-        .rows,
+      data: (
+        await db.query<Refund>('SELECT * FROM refunds ORDER BY created_at DESC LIMIT $1 OFFSET $2', [p.limit, p.offset])
+      ).rows,
     });
   });
   r.get('/payments', async (req, res) => {
     const p = page(req.query);
     res.json({
-      data: (await db.query('SELECT * FROM payments ORDER BY created_at DESC LIMIT $1 OFFSET $2', [p.limit, p.offset]))
-        .rows,
+      data: (
+        await db.query<Payment>('SELECT * FROM payments ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
+          p.limit,
+          p.offset,
+        ])
+      ).rows,
     });
   });
   r.get('/jobs', async (req, res) => {
     const p = page(req.query);
     res.json({
-      data: (await db.query('SELECT * FROM jobs ORDER BY run_at DESC LIMIT $1 OFFSET $2', [p.limit, p.offset])).rows,
+      data: (await db.query<Job>('SELECT * FROM jobs ORDER BY run_at DESC LIMIT $1 OFFSET $2', [p.limit, p.offset]))
+        .rows,
     });
   });
   r.post('/jobs/:id/retry', async (req, res) => {
@@ -587,12 +542,16 @@ export function adminRoutes(db: Database, cfg: Config) {
     await db.transaction(async tx => {
       const courier = await one(tx, "SELECT id FROM users WHERE id=$1 AND role='COURIER' FOR NO KEY UPDATE", [id]);
       assert(courier, 404, 'NOT_FOUND', 'Курьер не найден');
-      const earned = (await one(tx, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_earnings WHERE courier_id=$1', [
-        id,
-      ]))!.s;
-      const paid = (await one(tx, 'SELECT COALESCE(sum(amount),0)::int s FROM courier_payouts WHERE courier_id=$1', [
-        id,
-      ]))!.s;
+      const earned = (await one<{ s: number }>(
+        tx,
+        'SELECT COALESCE(sum(amount),0)::int s FROM courier_earnings WHERE courier_id=$1',
+        [id],
+      ))!.s;
+      const paid = (await one<{ s: number }>(
+        tx,
+        'SELECT COALESCE(sum(amount),0)::int s FROM courier_payouts WHERE courier_id=$1',
+        [id],
+      ))!.s;
       assert(b.amount <= earned - paid, 422, 'INSUFFICIENT_BALANCE', 'Сумма выплаты больше остатка баланса');
       await tx.query('INSERT INTO courier_payouts(id,courier_id,amount,comment,actor_id) VALUES($1,$2,$3,$4,$5)', [
         randomUUID(),

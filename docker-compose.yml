@@ -15,6 +15,7 @@ services:
       timeout: 3s
       retries: 10
   api:
+    stop_grace_period: 40s
     build: .
     env_file: .env
     environment:

@@ -1,13 +1,15 @@
+import type { Lifecycle } from '../lifecycle.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, type Database } from '../db.js';
 import { assert } from '../core.js';
 import { authentication } from './auth.js';
-export function eventRoutes(db: Database) {
+export function eventRoutes(db: Database, lifecycle?: Lifecycle) {
   const r = Router(),
     connections = new Map<string, number>();
   r.use(authentication(db));
   r.get('/', (req, res) => {
+    assert(!lifecycle?.draining, 503, 'SHUTTING_DOWN', 'Сервис завершает работу');
     let after = z.coerce
       .number()
       .int()
@@ -24,13 +26,17 @@ export function eventRoutes(db: Database) {
       'X-Accel-Buffering': 'no',
     });
     res.flushHeaders();
+    lifecycle?.registerStream(res);
     let busy = false,
-      closed = false;
+      closed = false,
+      checkReplay = after > 0;
     const cleanup = () => {
       if (closed) return;
       closed = true;
       clearInterval(timer);
-      connections.set(req.actor.id, Math.max(0, (connections.get(req.actor.id) ?? 1) - 1));
+      const remaining = (connections.get(req.actor.id) ?? 1) - 1;
+      if (remaining > 0) connections.set(req.actor.id, remaining);
+      else connections.delete(req.actor.id);
     };
     const tick = async () => {
       if (busy || closed) return;
@@ -41,10 +47,19 @@ export function eventRoutes(db: Database) {
           'SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=$1 AND revoked_at IS NULL AND access_expires_at>now() AND u.active',
           [req.actor.session_id],
         );
+        if (closed || res.writableEnded) return;
         if (!session) {
           cleanup();
           res.end();
           return;
+        }
+        if (checkReplay) {
+          checkReplay = false;
+          const retained = await one<{ oldest: string | null }>(db, 'SELECT min(id)::text oldest FROM events');
+          if (closed || res.writableEnded) return;
+          if (!retained?.oldest || after < Number(retained.oldest) - 1) {
+            res.write('event: stream.reset\ndata: {"reason":"HISTORY_EXPIRED"}\n\n');
+          }
         }
         const events = (
           await db.query(
@@ -54,6 +69,7 @@ export function eventRoutes(db: Database) {
             [after, req.actor.id, req.actor.role],
           )
         ).rows;
+        if (closed || res.writableEnded) return;
         for (const e of events) {
           after = Number(e.id);
           res.write(`id: ${e.id}\nevent: ${e.type}\ndata: ${JSON.stringify(e.payload)}\n\n`);
@@ -68,7 +84,7 @@ export function eventRoutes(db: Database) {
     };
     const timer = setInterval(() => void tick(), 2000);
     timer.unref();
-    req.on('close', cleanup);
+    res.on('close', cleanup);
     void tick();
   });
   return r;

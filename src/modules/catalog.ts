@@ -1,9 +1,11 @@
+import type { Address, Store } from '../models.js';
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { one, type Database, type SQL, type Row } from '../db.js';
+import { one, type Database, type SQL } from '../db.js';
 import { assert, language, page, uuid } from '../core.js';
 import { authentication, roles } from './auth.js';
+import { distanceKm, isStoreOpen } from '../services/catalog.js';
 export const addressSchema = z
   .object({
     label: z.string().max(60).default(''),
@@ -17,26 +19,6 @@ export const addressSchema = z
     comment: z.string().max(1000).default(''),
   })
   .strict();
-export function distanceKm(a: Row, b: Row) {
-  const r = Math.PI / 180,
-    lat1 = Number(a.latitude) * r,
-    lat2 = Number(b.latitude) * r;
-  const x =
-    Math.sin((lat2 - lat1) / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(((Number(b.longitude) - Number(a.longitude)) * r) / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
-export function isStoreOpen(store: Row, date = new Date()) {
-  const time = new Intl.DateTimeFormat('en-GB', {
-    timeZone: store.timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(date);
-  const from = String(store.opens_at).slice(0, 5),
-    to = String(store.closes_at).slice(0, 5);
-  return from === to || (from < to ? time >= from && time < to : time >= from || time < to);
-}
 export async function productList(db: SQL, query: Record<string, unknown>, userId?: string) {
   const { limit, offset } = page(query);
   const storeId = uuid.parse(query.storeId),
@@ -65,13 +47,13 @@ export async function productList(db: SQL, query: Record<string, unknown>, userI
 export function catalogRoutes(db: Database) {
   const r = Router();
   r.get('/stores', async (_req, res) =>
-    res.json({ data: (await db.query('SELECT * FROM stores WHERE active ORDER BY name')).rows }),
+    res.json({ data: (await db.query<Store>('SELECT * FROM stores WHERE active ORDER BY name')).rows }),
   );
   r.get('/delivery/availability', async (req, res) => {
     const point = z
       .object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) })
       .parse(req.query);
-    const stores = (await db.query('SELECT * FROM stores WHERE active')).rows
+    const stores = (await db.query<Store>('SELECT * FROM stores WHERE active')).rows
       .map(s => ({ ...s, distanceKm: distanceKm(s, point), open: isStoreOpen(s), radiusKm: Number(s.radius_km) }))
       .filter(s => s.distanceKm <= s.radiusKm)
       .sort((a, b) => a.distanceKm - b.distanceKm);
@@ -99,7 +81,7 @@ export function catalogRoutes(db: Database) {
   });
   r.get('/home', async (req, res) => {
     const storeId = uuid.parse(req.query.storeId);
-    const store = await one(db, 'SELECT * FROM stores WHERE id=$1 AND active', [storeId]);
+    const store = await one<Store>(db, 'SELECT * FROM stores WHERE id=$1 AND active', [storeId]);
     assert(store, 404, 'NOT_FOUND', 'Магазин не найден');
     res.json({
       data: {
@@ -153,7 +135,9 @@ export function userRoutes(db: Database) {
     });
   });
   r.get('/me/addresses', roles('CUSTOMER'), async (req, res) =>
-    res.json({ data: (await db.query('SELECT * FROM addresses WHERE user_id=$1 ORDER BY id', [req.actor.id])).rows }),
+    res.json({
+      data: (await db.query<Address>('SELECT * FROM addresses WHERE user_id=$1 ORDER BY id', [req.actor.id])).rows,
+    }),
   );
   r.post('/me/addresses', roles('CUSTOMER'), async (req, res) => {
     const b = addressSchema.parse(req.body),

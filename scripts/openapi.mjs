@@ -551,6 +551,14 @@ const schemas = {
     name: localized,
   }),
   AdminSummary: object({
+    jobHealth: object({
+      failed: { type: 'integer' },
+      overdue: {
+        type: 'integer',
+        description: 'Незавершённые задачи с задержкой больше 5 минут и числом попыток меньше 10',
+      },
+      oldestDueAt: nullable(dateTime),
+    }),
     orders: arr(object({ status: string, count: { type: 'integer' } })),
     lowStock: arr(ref('StoreProductResponse')),
     failedJobs: arr(object({ id: uuid, kind: string, attempts: { type: 'integer' }, last_error: nullable(string) })),
@@ -702,7 +710,10 @@ const store = [['storeId', uuid, true]],
 const base = '/api/v1';
 const add = (method, path, tag, title, options) => route(method, base + path, tag, title, options);
 route('get', '/health', 'System', 'Жив ли процесс', { response: ref('HealthStatus') });
-route('get', '/ready', 'System', 'Доступна ли база данных', { response: ref('ReadyStatus') });
+route('get', '/ready', 'System', 'Доступна ли база данных', {
+  response: ref('ReadyStatus'),
+  description: 'Возвращает 503 во время остановки процесса.',
+});
 add('post', '/auth/otp/request', 'Auth', 'Запросить SMS-код', {
   body: 'OtpRequest',
   status: 202,
@@ -1025,7 +1036,7 @@ add('get', '/events', 'Events', 'Поток событий SSE', {
   role: 'ANY',
   query: [['after', { type: 'integer', minimum: 0 }]],
   description:
-    'Authorization: Bearer обязателен. Используйте fetch-stream, обычный EventSource не позволяет задать этот заголовок. Переподключение: Last-Event-ID либо after. Поток закрывается при истечении access token.',
+    'Authorization: Bearer обязателен. Используйте fetch-stream, обычный EventSource не позволяет задать этот заголовок. Переподключение: Last-Event-ID либо after. Поток закрывается при истечении access token и остановке сервера. События хранятся 7 дней. Если курсор старше доступной истории, приходит stream.reset с reason=HISTORY_EXPIRED: перечитайте актуальное состояние через GET.',
 });
 spec.paths['/api/v1/events'].get.responses[200] = {
   description: 'SSE: id, event, data',

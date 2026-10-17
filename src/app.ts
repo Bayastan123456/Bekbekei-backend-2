@@ -1,3 +1,5 @@
+import { Lifecycle } from './lifecycle.js';
+import { shiftRoutes } from './modules/courier.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -12,13 +14,13 @@ import { AppError, type Config } from './core.js';
 import { authRoutes } from './modules/auth.js';
 import { catalogRoutes, userRoutes } from './modules/catalog.js';
 import { orderRoutes } from './modules/orders.js';
-import { pickingRoutes, deliveryRoutes, replacementRoutes, shiftRoutes } from './modules/fulfillment.js';
+import { pickingRoutes, deliveryRoutes, replacementRoutes } from './modules/fulfillment.js';
 import { paymentRoutes, webhookHandler } from './modules/payments.js';
 import { supportRoutes } from './modules/support.js';
 import { adminRoutes } from './modules/admin.js';
 import { eventRoutes } from './modules/events.js';
 
-export function createApp(db: Database, cfg: Config) {
+export function createApp(db: Database, cfg: Config, lifecycle = new Lifecycle()) {
   const app = express();
   app.disable('x-powered-by');
   app.use(helmet());
@@ -30,6 +32,13 @@ export function createApp(db: Database, cfg: Config) {
   );
   app.use((req, res, next) => {
     res.set('X-Request-Id', randomUUID());
+    next();
+  });
+  app.use((req, res, next) => {
+    if (lifecycle.draining && req.path !== '/health') {
+      res.status(503).json({ error: { code: 'SHUTTING_DOWN', message: 'Сервис завершает работу' } });
+      return;
+    }
     next();
   });
   app.use(
@@ -66,14 +75,14 @@ export function createApp(db: Database, cfg: Config) {
   app.use('/api/v1/courier', shiftRoutes(db));
   app.use('/api/v1/support', supportRoutes(db));
   app.use('/api/v1/admin', adminRoutes(db, cfg));
-  app.use('/api/v1/events', eventRoutes(db));
+  app.use('/api/v1/events', eventRoutes(db, lifecycle));
   // Routers with global auth middleware must only be mounted under their own namespaces.
   const spec = JSON.parse(readFileSync(resolve('docs/openapi.json'), 'utf8'));
   app.get('/openapi.json', (_req, res) => res.json(spec));
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(spec, { swaggerOptions: { persistAuthorization: false } }));
   app.use('/admin', express.static(resolve('public'), { index: 'index.html' }));
   app.use((_req, _res, next) => next(new AppError(404, 'NOT_FOUND', 'Маршрут не найден')));
-  app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const requestId = res.getHeader('X-Request-Id');
     if (error instanceof ZodError) {
       res.status(422).json({
@@ -92,19 +101,19 @@ export function createApp(db: Database, cfg: Config) {
         .json({ error: { code: error.code, message: error.message, details: error.details, requestId } });
       return;
     }
-    if (error?.type === 'entity.parse.failed') {
+    if (error instanceof Error && 'type' in error && error.type === 'entity.parse.failed') {
       res.status(400).json({ error: { code: 'INVALID_JSON', message: 'Некорректный JSON', requestId } });
       return;
     }
-    if (error?.type === 'entity.too.large') {
+    if (error instanceof Error && 'type' in error && error.type === 'entity.too.large') {
       res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: 'Слишком большой запрос', requestId } });
       return;
     }
-    if (error?.code === '23505') {
+    if (error instanceof Error && 'code' in error && error.code === '23505') {
       res.status(409).json({ error: { code: 'CONFLICT', message: 'Такая запись уже существует', requestId } });
       return;
     }
-    if (error?.code === '23503') {
+    if (error instanceof Error && 'code' in error && error.code === '23503') {
       res.status(422).json({ error: { code: 'INVALID_REFERENCE', message: 'Связанная запись не найдена', requestId } });
       return;
     }
