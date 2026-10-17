@@ -8,7 +8,12 @@ export interface Database extends SQL {
   close(): Promise<void>;
 }
 export function postgres(url: string): Database {
-  const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 20000, statement_timeout: 15000 });
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: 10,
+    connectionTimeoutMillis: 20000,
+    statement_timeout: 15000,
+  });
   const adapt = (client: pg.Pool | pg.PoolClient): SQL => ({
     async query<T extends object>(sql: string, args: unknown[] = []) {
       const raw = await client.query(sql, args);
