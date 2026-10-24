@@ -11,7 +11,7 @@
     "seed:catalog": "node --import tsx src/scripts/seed-catalog.ts",
     "bootstrap": "node --import tsx src/scripts/bootstrap.ts",
     "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && tsc -p tests/tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

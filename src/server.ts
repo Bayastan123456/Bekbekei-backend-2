@@ -22,13 +22,13 @@ async function shutdown() {
   cfg.logger({ type: 'server.stopping' });
   try {
     await shutdownServer(server, lifecycle, stopWorker, db, () => {
-      cfg.logger({ type: 'server.shutdown_timeout' });
+      cfg.logger({ type: 'server.shutdown_timeout', level: 'error' });
       process.exit(1);
     });
     cfg.logger({ type: 'server.stopped' });
     process.exit(0);
   } catch (error) {
-    cfg.logger({ type: 'server.shutdown_error', message: String(error) });
+    cfg.logger({ type: 'server.shutdown_error', level: 'error', error });
     process.exit(1);
   }
 }

@@ -359,3 +359,12 @@ th {
     font-size: 27px;
   }
 }
+
+#login-message {
+  color: #942c18;
+  background: #fff0ed;
+  border: 1px solid #dc9689;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-weight: 600;
+}

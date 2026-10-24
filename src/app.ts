@@ -23,6 +23,29 @@ import { eventRoutes } from './modules/events.js';
 export function createApp(db: Database, cfg: Config, lifecycle = new Lifecycle()) {
   const app = express();
   app.disable('x-powered-by');
+  app.use((req, res, next) => {
+    const requestId = randomUUID();
+    const started = process.hrtime.bigint();
+    res.set('X-Request-Id', requestId);
+    let logged = false;
+    const logRequest = (aborted: boolean) => {
+      if (logged) return;
+      logged = true;
+      cfg.logger({
+        type: 'request.completed',
+        level: aborted || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
+        requestId,
+        method: req.method,
+        route: req.route?.path ? `${req.baseUrl}${req.route.path}` : 'unmatched',
+        status: aborted ? null : res.statusCode,
+        durationMs: Number(process.hrtime.bigint() - started) / 1e6,
+        aborted,
+      });
+    };
+    res.once('finish', () => logRequest(false));
+    res.once('close', () => logRequest(!res.writableFinished));
+    next();
+  });
   app.use(helmet());
   app.use(
     cors({
@@ -30,10 +53,6 @@ export function createApp(db: Database, cfg: Config, lifecycle = new Lifecycle()
       credentials: false,
     }),
   );
-  app.use((req, res, next) => {
-    res.set('X-Request-Id', randomUUID());
-    next();
-  });
   app.use((req, res, next) => {
     if (lifecycle.draining && req.path !== '/health') {
       res.status(503).json({ error: { code: 'SHUTTING_DOWN', message: 'Сервис завершает работу' } });
@@ -96,6 +115,7 @@ export function createApp(db: Database, cfg: Config, lifecycle = new Lifecycle()
       return;
     }
     if (error instanceof AppError) {
+      if (error.status >= 500) cfg.logger({ type: 'request.error', level: 'error', requestId, error });
       res
         .status(error.status)
         .json({ error: { code: error.code, message: error.message, details: error.details, requestId } });
@@ -117,7 +137,7 @@ export function createApp(db: Database, cfg: Config, lifecycle = new Lifecycle()
       res.status(422).json({ error: { code: 'INVALID_REFERENCE', message: 'Связанная запись не найдена', requestId } });
       return;
     }
-    cfg.logger({ type: 'request.error', requestId, message: String(error) });
+    cfg.logger({ type: 'request.error', level: 'error', requestId, error });
     res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Внутренняя ошибка сервера', requestId } });
   });
   return app;

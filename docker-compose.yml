@@ -1,5 +1,10 @@
 services:
   db:
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: bekbekei
@@ -15,6 +20,7 @@ services:
       timeout: 3s
       retries: 10
   api:
+    logging: *logging
     stop_grace_period: 40s
     build: .
     env_file: .env

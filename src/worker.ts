@@ -59,7 +59,8 @@ export async function runJobs(db: Database, cfg: Config, limit = 20, canProcess:
           type: job.attempts + 1 >= jobAttemptLimit ? 'job.failed' : 'job.error',
           attempts: job.attempts + 1,
           jobId: job.id,
-          message: String(error),
+          level: 'error',
+          error,
         });
       }
       return true;
@@ -82,7 +83,11 @@ export function startWorker(db: Database, cfg: Config) {
       if (now >= nextHealthCheck) {
         nextHealthCheck = now + 60_000;
         const health = await jobHealth(db);
-        cfg.logger({ type: health.failed || health.overdue ? 'worker.unhealthy' : 'worker.health', ...health });
+        cfg.logger({
+          type: health.failed || health.overdue ? 'worker.unhealthy' : 'worker.health',
+          level: health.failed || health.overdue ? 'warn' : 'info',
+          ...health,
+        });
       }
       if (!stopped && now >= nextCleanup) {
         nextCleanup = now + 60 * 60_000;
@@ -90,7 +95,7 @@ export function startWorker(db: Database, cfg: Config) {
         cfg.logger({ type: 'maintenance.completed', deleted });
       }
     } catch (error) {
-      cfg.logger({ type: 'worker.error', message: String(error) });
+      cfg.logger({ type: 'worker.error', level: 'error', error });
     }
   };
   const timer = setInterval(() => {

@@ -1,3 +1,4 @@
+import { createLogger } from './logger.js';
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type { SQL } from './db.js';
@@ -98,6 +99,6 @@ export function config(): Config {
     smsProvider: 'log',
     paymentProvider,
     corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(','),
-    logger: data => console.log(JSON.stringify(data)),
+    logger: createLogger(process.env.LOG_LEVEL ?? 'info'),
   };
 }

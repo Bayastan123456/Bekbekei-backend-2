@@ -9,7 +9,7 @@ import type { Job } from '../src/models.js';
 import { one, type Database } from '../src/db.js';
 import { migrate } from '../src/scripts/migrate.js';
 import { seed, seedIds } from '../src/scripts/seed.js';
-import { newSession } from '../src/modules/auth.js';
+import { devOtpSnapshot, newSession } from '../src/modules/auth.js';
 import { runJobs } from '../src/worker.js';
 import { testDatabase } from './database.js';
 let db: Database, app: Express, admin: any;
@@ -112,13 +112,15 @@ test('миграции повторяются безопасно, публичн
   await call('get', '/me', null, undefined, 401);
   await call('get', '/admin/orders', null, undefined, 401);
 });
-test('SMS-код только в логе; согласие, cooldown, одноразовое использование', async () => {
+test('SMS-код не попадает в логи; согласие, cooldown, одноразовое использование', async () => {
   const phone = `+996${++number}`;
   await call('post', '/auth/otp/request', null, { phone }, 422);
   const r = await call('post', '/auth/otp/request', null, { phone, consent: true }, 202);
   assert.equal(r.code, undefined);
   await call('post', '/auth/otp/request', null, { phone, consent: true }, 429);
-  const code = logs.findLast(l => l.type === 'development.otp' && l.phone === phone)!.code;
+  const code = devOtpSnapshot().find(entry => entry.phone === phone)!.code;
+  assert.ok(!JSON.stringify(logs).includes(phone));
+  assert.ok(logs.filter(l => l.type === 'development.otp').every(l => !('code' in l) && !('phone' in l)));
   const session = await call('post', '/auth/otp/verify', null, { phone, code });
   assert.equal(session.user.role, 'CUSTOMER');
   await call('post', '/auth/otp/verify', null, { phone, code }, 400);
@@ -127,7 +129,7 @@ test('SMS-код только в логе; согласие, cooldown, одно�
 test('код входа виден администратору до подтверждения и пропадает после', async () => {
   const phone = `+996${++number}`;
   await call('post', '/auth/otp/request', null, { phone, consent: true }, 202);
-  const code = logs.findLast(l => l.type === 'development.otp' && l.phone === phone)!.code;
+  const code = devOtpSnapshot().find(entry => entry.phone === phone)!.code;
   await call('get', '/admin/otp-codes', null, undefined, 401);
   const codes = await call('get', '/admin/otp-codes', admin);
   assert.ok(codes.some((c: any) => c.phone === phone && c.code === code));
@@ -138,7 +140,7 @@ test('код входа виден администратору до подтв�
 test('пять неверных кодов блокируют правильный код, попытки сохраняются', async () => {
   const phone = `+996${++number}`;
   await call('post', '/auth/otp/request', null, { phone, consent: true }, 202);
-  const code = logs.findLast(l => l.phone === phone)!.code;
+  const code = devOtpSnapshot().find(entry => entry.phone === phone)!.code;
   for (let i = 0; i < 5; i++)
     await call('post', '/auth/otp/verify', null, { phone, code: code === '0000' ? '0001' : '0000' }, 400);
   await call('post', '/auth/otp/verify', null, { phone, code }, 400);
@@ -147,7 +149,7 @@ test('пять неверных кодов блокируют правильны
 test('истёкший код отклоняется', async () => {
   const phone = `+996${++number}`;
   await call('post', '/auth/otp/request', null, { phone, consent: true }, 202);
-  const code = logs.findLast(l => l.phone === phone)!.code;
+  const code = devOtpSnapshot().find(entry => entry.phone === phone)!.code;
   await db.query("UPDATE otp_challenges SET expires_at=now()-interval '1 second' WHERE phone=$1", [phone]);
   await call('post', '/auth/otp/verify', null, { phone, code }, 400);
 });

@@ -51,22 +51,12 @@ function badge(text, status) {
 
 // ---------- API ----------
 async function api(path, options = {}, retry = true) {
+  const requestToken = accessToken;
   const headers = { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) };
   const res = await fetch(path, { ...options, headers: { ...headers, ...options.headers } });
   if (res.status === 401 && refreshToken && retry) {
-    const r = await fetch('/api/v1/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-    if (r.ok) {
-      const j = await r.json();
-      accessToken = j.data.accessToken;
-      refreshToken = j.data.refreshToken;
-      sessionStorage.setItem(SESSION_KEY, refreshToken);
-      return api(path, options, false);
-    }
-    logout();
+    if (accessToken === requestToken) await renewSession();
+    return api(path, options, false);
   }
   const body = res.status === 204 ? { data: null } : await res.json();
   if (!res.ok) {
@@ -74,9 +64,30 @@ async function api(path, options = {}, retry = true) {
     const fields = Array.isArray(details)
       ? details.map(d => `${Array.isArray(d.path) ? d.path.join('.') : d.path} — ${d.message}`).join('; ')
       : '';
-    throw new Error(body.error?.message ? body.error.message + (fields ? `: ${fields}` : '') : `HTTP ${res.status}`);
+    const error = new Error(body.error?.message ? body.error.message + (fields ? `: ${fields}` : '') : `HTTP ${res.status}`);
+    error.status = res.status;
+    throw error;
   }
   return body.data;
+}
+// Concurrent requests must share one refresh: refresh tokens rotate after every use.
+let refreshPromise = null;
+function renewSession() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const result = await api('/api/v1/auth/refresh', {
+        method: 'POST', body: JSON.stringify({ refreshToken }),
+      }, false);
+      accessToken = result.accessToken;
+      refreshToken = result.refreshToken;
+      sessionStorage.setItem(SESSION_KEY, refreshToken);
+    } catch (error) {
+      if (error.status === 401) logout();
+      throw error;
+    }
+  })().finally(() => { refreshPromise = null; });
+  return refreshPromise;
 }
 let cache = { stores: [], categories: [], products: [] };
 async function loadLookups() {
@@ -89,6 +100,8 @@ async function loadLookups() {
 
 function message(text) {
   $('message').textContent = text;
+  $('login-message').textContent = text;
+  $('login-message').hidden = !text;
 }
 function logout() {
   accessToken = refreshToken = null;
@@ -903,12 +916,13 @@ async function enterDashboard() {
 }
 $('login-form').onsubmit = async e => {
   e.preventDefault();
+  message('');
   try {
     const data = new FormData(e.target);
     const result = await api('/api/v1/auth/staff/login', {
       method: 'POST',
       body: JSON.stringify({ phone: data.get('phone'), password: data.get('password') }),
-    });
+    }, false);
     if (result.user.role !== 'ADMIN') {
       await fetch('/api/v1/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${result.accessToken}` } });
       throw new Error('Панель доступна только администратору');
@@ -947,19 +961,23 @@ $('tabs').onclick = e => {
   const stored = sessionStorage.getItem(SESSION_KEY);
   if (!stored) return;
   refreshToken = stored;
+  $('login').hidden = true;
+  $('session-loading').hidden = false;
   try {
-    const result = await api('/api/v1/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }, false);
-    accessToken = result.accessToken;
-    refreshToken = result.refreshToken;
-    sessionStorage.setItem(SESSION_KEY, refreshToken);
+    await renewSession();
     const me = await api('/api/v1/me');
     if (me.role !== 'ADMIN') {
       await fetch('/api/v1/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
+      logout();
       throw new Error('Панель доступна только администратору');
     }
     await enterDashboard();
-  } catch {
-    accessToken = refreshToken = null;
-    sessionStorage.removeItem(SESSION_KEY);
+  } catch (error) {
+    // A network/server failure does not invalidate the saved session.
+    if (error.status === 401) logout();
+    if (!accessToken || $('shell').hidden) $('login').hidden = false;
+    message(error.status === 401 ? 'Сеанс истёк. Войдите снова.' : `Не удалось восстановить вход: ${error.message}. Обновите страницу, чтобы повторить.`);
+  } finally {
+    $('session-loading').hidden = true;
   }
 })();

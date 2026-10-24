@@ -1,3 +1,4 @@
+import { writeSse } from '../sse.js';
 import type { Lifecycle } from '../lifecycle.js';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -58,7 +59,10 @@ export function eventRoutes(db: Database, lifecycle?: Lifecycle) {
           const retained = await one<{ oldest: string | null }>(db, 'SELECT min(id)::text oldest FROM events');
           if (closed || res.writableEnded) return;
           if (!retained?.oldest || after < Number(retained.oldest) - 1) {
-            res.write('event: stream.reset\ndata: {"reason":"HISTORY_EXPIRED"}\n\n');
+            if (!writeSse(res, 'event: stream.reset\ndata: {"reason":"HISTORY_EXPIRED"}\n\n')) {
+              cleanup();
+              return;
+            }
           }
         }
         const events = (
@@ -72,9 +76,12 @@ export function eventRoutes(db: Database, lifecycle?: Lifecycle) {
         if (closed || res.writableEnded) return;
         for (const e of events) {
           after = Number(e.id);
-          res.write(`id: ${e.id}\nevent: ${e.type}\ndata: ${JSON.stringify(e.payload)}\n\n`);
+          if (!writeSse(res, `id: ${e.id}\nevent: ${e.type}\ndata: ${JSON.stringify(e.payload)}\n\n`)) {
+            cleanup();
+            return;
+          }
         }
-        if (!events.length) res.write(': heartbeat\n\n');
+        if (!events.length && !writeSse(res, ': heartbeat\n\n')) cleanup();
       } catch {
         cleanup();
         res.end();

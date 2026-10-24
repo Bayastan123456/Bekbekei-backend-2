@@ -1,3 +1,4 @@
+import { OtpStore } from '../otp-store.js';
 import type { Actor, OtpChallenge, Session, User } from '../models.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import { Router, type RequestHandler } from 'express';
@@ -6,17 +7,11 @@ import { z } from 'zod';
 import { one, type Database, type SQL } from '../db.js';
 import { assert, equal, otpHash, passwordValid, phone, sha, token, type Config } from '../core.js';
 export type { Actor } from '../models.js';
-// Dev convenience only: lets ADMIN read the current OTP for a phone instead of tailing the server log.
+// Dev convenience only: lets ADMIN read the current OTP for a phone without putting secrets in server logs.
 // Reachable only while smsProvider is 'log', which config() already forbids in production.
-const devOtpCodes = new Map<string, { code: string; expiresAt: number }>();
+const devOtpCodes = new OtpStore();
 export function devOtpSnapshot() {
-  const now = Date.now();
-  for (const [p, entry] of devOtpCodes) if (entry.expiresAt <= now) devOtpCodes.delete(p);
-  return [...devOtpCodes].map(([phone, entry]) => ({
-    phone,
-    code: entry.code,
-    expiresAt: new Date(entry.expiresAt).toISOString(),
-  }));
+  return devOtpCodes.snapshot();
 }
 declare global {
   namespace Express {
@@ -86,7 +81,7 @@ export function authRoutes(db: Database, cfg: Config) {
       return result.rowCount > 0;
     });
     assert(accepted, 429, 'OTP_COOLDOWN', 'Повторный запрос доступен через 60 секунд');
-    cfg.logger({ type: 'development.otp', phone: body.phone, code, expiresIn: 300 });
+    cfg.logger({ type: 'development.otp', level: 'info', requestId: res.getHeader('X-Request-Id'), expiresIn: 300 });
     devOtpCodes.set(body.phone, { code, expiresAt: Date.now() + 300_000 });
     res.status(202).json({ data: { expiresIn: 300, retryAfter: 60 } });
   });

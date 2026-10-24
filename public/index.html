@@ -4,9 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Бекбекей · Администрирование</title>
-    <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/style.css?v=20261024-login" />
   </head>
   <body>
+    <p id="session-loading" role="status" hidden>Восстанавливаем вход…</p>
     <section id="login">
       <p class="eyebrow">АДМИНИСТРАТОР</p>
       <h1>Вход в панель</h1>
@@ -14,6 +15,7 @@
       <form id="login-form">
         <label>Телефон<input name="phone" placeholder="+996700000001" autocomplete="username" required /></label>
         <label>Пароль<input name="password" type="password" autocomplete="current-password" required /></label>
+        <p id="login-message" role="alert" aria-live="assertive" hidden></p>
         <button>Войти</button>
       </form>
     </section>
@@ -64,7 +66,7 @@
         </div>
         <p class="notice">
           Тестовый режим. QR-платежи и возвраты имитируются; настоящие SMS не отправляются — код для входа смотрите на
-          вкладке «Коды входа» или в журнале сервера.
+          вкладке «Коды входа».
         </p>
         <p id="message" role="status"></p>
         <section id="result"></section>
@@ -72,6 +74,6 @@
         <section id="detail-area"></section>
       </main>
     </div>
-    <script src="/admin/app.js" defer></script>
+    <script src="/admin/app.js?v=20261024-login" defer></script>
   </body>
 </html>
