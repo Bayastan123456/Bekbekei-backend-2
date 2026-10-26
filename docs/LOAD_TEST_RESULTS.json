@@ -1,0 +1,221 @@
+{
+  "generatedAt": "2026-10-26T06:06:36.987Z",
+  "environment": {
+    "node": "v24.13.0",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "database": "PGlite (serialized transactions, NOT a PostgreSQL concurrency benchmark)"
+  },
+  "methodology": "Loopback HTTP only; separate seeded embedded database per scenario; closed-loop fixed worker counts; full response bodies consumed. Normal rate limits stay enabled; each scenario gets a fresh application and limiter. No external service or production data used. Latency excludes intentional client pacing delays.",
+  "results": [
+    {
+      "name": "catalog",
+      "count": 200,
+      "concurrency": 1,
+      "elapsedMs": 141.31,
+      "requestsPerSecond": 1415.37,
+      "latencyMs": {
+        "p50": 0.63,
+        "p95": 1.01,
+        "p99": 1.91,
+        "max": 3.41
+      },
+      "eventLoopMaxMs": 10.48,
+      "statuses": {
+        "200": 200
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "catalog",
+      "count": 200,
+      "concurrency": 10,
+      "elapsedMs": 106.8,
+      "requestsPerSecond": 1872.7,
+      "latencyMs": {
+        "p50": 5.03,
+        "p95": 7.22,
+        "p99": 13.17,
+        "max": 14.82
+      },
+      "eventLoopMaxMs": 12.44,
+      "statuses": {
+        "200": 200
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "catalog",
+      "count": 200,
+      "concurrency": 25,
+      "elapsedMs": 102.1,
+      "requestsPerSecond": 1958.92,
+      "latencyMs": {
+        "p50": 8.55,
+        "p95": 50.46,
+        "p99": 71.25,
+        "max": 72.02
+      },
+      "eventLoopMaxMs": 13.67,
+      "statuses": {
+        "200": 200
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "catalog",
+      "count": 200,
+      "concurrency": 50,
+      "elapsedMs": 99.45,
+      "requestsPerSecond": 2011.09,
+      "latencyMs": {
+        "p50": 8.82,
+        "p95": 91.11,
+        "p99": 93.79,
+        "max": 94.67
+      },
+      "eventLoopMaxMs": 13.91,
+      "statuses": {
+        "200": 200
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "authenticated profile reads",
+      "count": 200,
+      "concurrency": 25,
+      "elapsedMs": 85.2,
+      "requestsPerSecond": 2347.35,
+      "latencyMs": {
+        "p50": 7.07,
+        "p95": 43.24,
+        "p99": 57.13,
+        "max": 58.08
+      },
+      "eventLoopMaxMs": 12.47,
+      "statuses": {
+        "200": 200
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "support thread writes",
+      "count": 100,
+      "concurrency": 20,
+      "elapsedMs": 102.27,
+      "requestsPerSecond": 977.79,
+      "latencyMs": {
+        "p50": 16.63,
+        "p95": 41.52,
+        "p99": 52.61,
+        "max": 55.66
+      },
+      "eventLoopMaxMs": 14.11,
+      "statuses": {
+        "201": 100
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "paced mixed traffic (20 requests/sec, 10 seconds)",
+      "count": 200,
+      "concurrency": 20,
+      "elapsedMs": 9955.18,
+      "requestsPerSecond": 20.09,
+      "latencyMs": {
+        "p50": 5.47,
+        "p95": 8.43,
+        "p99": 9.2,
+        "max": 12.38
+      },
+      "eventLoopMaxMs": 15.52,
+      "statuses": {
+        "200": 150,
+        "201": 50
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "same checkout submitted 50 times",
+      "count": 50,
+      "concurrency": 50,
+      "elapsedMs": 76.3,
+      "requestsPerSecond": 655.27,
+      "latencyMs": {
+        "p50": 43.99,
+        "p95": 71,
+        "p99": 74.91,
+        "max": 74.91
+      },
+      "eventLoopMaxMs": 10.3,
+      "statuses": {
+        "200": 49,
+        "201": 1
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "20 customers contend for last item",
+      "count": 20,
+      "concurrency": 20,
+      "elapsedMs": 36.74,
+      "requestsPerSecond": 544.34,
+      "latencyMs": {
+        "p50": 23.47,
+        "p95": 35.99,
+        "p99": 36.01,
+        "max": 36.01
+      },
+      "eventLoopMaxMs": 10.35,
+      "statuses": {
+        "201": 1,
+        "409": 19
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "20 pickers contend for one order",
+      "count": 20,
+      "concurrency": 20,
+      "elapsedMs": 21.08,
+      "requestsPerSecond": 948.68,
+      "latencyMs": {
+        "p50": 12.86,
+        "p95": 19.69,
+        "p99": 20.42,
+        "max": 20.42
+      },
+      "eventLoopMaxMs": 10.1,
+      "statuses": {
+        "200": 1,
+        "409": 19
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "per-IP rate limit burst",
+      "count": 350,
+      "concurrency": 50,
+      "elapsedMs": 32.47,
+      "requestsPerSecond": 10778.46,
+      "latencyMs": {
+        "p50": 2.22,
+        "p95": 27.07,
+        "p99": 29.25,
+        "max": 30.39
+      },
+      "eventLoopMaxMs": 10.67,
+      "statuses": {
+        "200": 300,
+        "429": 50
+      },
+      "transportErrors": 0
+    },
+    {
+      "name": "SSE reconnect cleanup",
+      "cycles": 10,
+      "maxStreamsPerUser": 3,
+      "passed": true
+    }
+  ]
+}

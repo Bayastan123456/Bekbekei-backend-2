@@ -12,6 +12,8 @@
     "bootstrap": "node --import tsx src/scripts/bootstrap.ts",
     "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts",
     "check": "tsc --noEmit && tsc -p tests/tsconfig.json",
+    "test:security": "node --import tsx --test tests/security.test.ts tests/resource-safety.test.ts",
+    "test:load": "node --import tsx tests/load.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

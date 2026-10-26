@@ -2,12 +2,12 @@ import { PGlite, type Transaction } from '@electric-sql/pglite';
 import pg from 'pg';
 import { randomUUID } from 'node:crypto';
 import { postgres, type Database, type SQL } from '../src/db.js';
-export async function testDatabase(): Promise<Database> {
-  if (process.env.TEST_DATABASE_URL) {
+export async function testDatabase(databaseUrl = process.env.TEST_DATABASE_URL): Promise<Database> {
+  if (databaseUrl) {
     const schema = `test_${randomUUID().replaceAll('-', '')}`,
-      pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL });
+      pool = new pg.Pool({ connectionString: databaseUrl });
     await pool.query(`CREATE SCHEMA "${schema}"`);
-    const url = new URL(process.env.TEST_DATABASE_URL);
+    const url = new URL(databaseUrl);
     url.searchParams.set('options', `-c search_path=${schema}`);
     const db = postgres(url.toString());
     return {

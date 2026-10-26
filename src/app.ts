@@ -46,6 +46,10 @@ export function createApp(db: Database, cfg: Config, lifecycle = new Lifecycle()
     res.once('close', () => logRequest(!res.writableFinished));
     next();
   });
+  app.use('/api', (_req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
   app.use(helmet());
   app.use(
     cors({
@@ -127,6 +131,28 @@ export function createApp(db: Database, cfg: Config, lifecycle = new Lifecycle()
     }
     if (error instanceof Error && 'type' in error && error.type === 'entity.too.large') {
       res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: 'Слишком большой запрос', requestId } });
+      return;
+    }
+    if (
+      error instanceof Error &&
+      'status' in error &&
+      error.status === 400 &&
+      'code' in error &&
+      (error.code === 'Z_DATA_ERROR' || error.code === 'Z_BUF_ERROR')
+    ) {
+      res
+        .status(400)
+        .json({ error: { code: 'INVALID_COMPRESSED_BODY', message: 'Некорректное сжатое тело запроса', requestId } });
+      return;
+    }
+    if (
+      error instanceof Error &&
+      'type' in error &&
+      (error.type === 'encoding.unsupported' || error.type === 'charset.unsupported')
+    ) {
+      res
+        .status(415)
+        .json({ error: { code: 'UNSUPPORTED_ENCODING', message: 'Кодировка запроса не поддерживается', requestId } });
       return;
     }
     if (error instanceof Error && 'code' in error && error.code === '23505') {

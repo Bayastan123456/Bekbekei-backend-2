@@ -22,7 +22,7 @@ export function eventRoutes(db: Database, lifecycle?: Lifecycle) {
     connections.set(req.actor.id, count + 1);
     res.status(200).set({
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-store',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });

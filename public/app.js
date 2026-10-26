@@ -780,7 +780,6 @@ async function showSupportThread(thread) {
     list.className = 'messages';
     for (const m of messages) {
       const li = document.createElement('li');
-      li.innerHTML = '';
       const meta = document.createElement('small');
       meta.textContent = dateTime(m.created_at);
       const body = document.createElement('p');
@@ -840,7 +839,11 @@ function renderSummary(data) {
   for (const row of data.orders) {
     const stat = document.createElement('div');
     stat.className = 'stat';
-    stat.innerHTML = `<strong>${row.count}</strong><span>${ORDER_STATUS[row.status] ?? row.status}</span>`;
+    const count = document.createElement('strong');
+    count.textContent = row.count;
+    const label = document.createElement('span');
+    label.textContent = ORDER_STATUS[row.status] ?? row.status;
+    stat.append(count, label);
     counts.append(stat);
   }
   area.append(counts);
