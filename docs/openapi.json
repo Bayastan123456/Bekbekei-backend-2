@@ -3,7 +3,7 @@
   "info": {
     "title": "Бекбекей · API доставки продуктов",
     "version": "0.1.0",
-    "description": "Рабочий MVP по PDF-макету. SMS выводятся только в серверный лог. QR-платежи и возвраты — тестовая имитация. Цены передаются в тыйынах (KGS × 100). Вход: opaque Bearer access token на 15 минут, refresh token на 30 дней. Поля запросов — camelCase; SQL-ответы — snake_case. Списки: limit/offset. Перед оформлением запросите checkout/quote."
+    "description": "Рабочий MVP по PDF-макету. Реальный SMS-провайдер не подключён; тестовый OTP доступен ADMIN только вне production. QR-платежи и возвраты — тестовая имитация. Цены передаются в тыйынах (KGS × 100). Вход: opaque Bearer access token на 15 минут, refresh token на 30 дней. Поля запросов — camelCase; SQL-ответы — snake_case. Списки: limit/offset; поддержка также latest/before/after. Перед оформлением запросите checkout/quote."
   },
   "servers": [
     {
@@ -397,6 +397,10 @@
         "properties": {
           "message": {
             "type": "string"
+          },
+          "clientMessageId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -2086,6 +2090,43 @@
       "OrderDetail": {
         "type": "object",
         "properties": {
+          "recipient": {
+            "type": "object",
+            "properties": {
+              "first_name": {
+                "type": "string"
+              },
+              "last_name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "pickup": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              },
+              "latitude": {
+                "type": "number"
+              },
+              "longitude": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -2730,6 +2771,10 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false
@@ -2761,6 +2806,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "client_message_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -2786,6 +2836,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "client_message_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -10924,6 +10979,174 @@
         }
       }
     },
+    "/api/v1/courier/deliveries/{id}/earning": {
+      "get": {
+        "tags": [
+          "Courier"
+        ],
+        "summary": "Read earning for own assigned delivery",
+        "description": "Роль: COURIER. POSTED is a recorded earning; PENDING is an active delivery without earning; UNKNOWN is a terminal delivery without a recorded earning. amount=null is not zero. Amounts are in tyiyn.",
+        "operationId": "get__api_v1_courier_deliveries__id__earning",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "order_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "POSTED",
+                            "PENDING",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "amount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Тыйын: 13000 = 130 сом",
+                          "nullable": true
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "currency": {
+                          "type": "string",
+                          "enum": [
+                            "KGS"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Неверный код или JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Запись не найдена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния, цены или остатков",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка проверки данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Ограничение частоты",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ошибка сервера",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Интеграция отключена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/courier/history": {
       "get": {
         "tags": [
@@ -11486,14 +11709,14 @@
         }
       }
     },
-    "/api/v1/support/threads/{id}/messages": {
+    "/api/v1/support/threads/{id}": {
       "get": {
         "tags": [
           "Support"
         ],
-        "summary": "Сообщения обращения",
-        "description": "Роль: Владелец или ADMIN. ",
-        "operationId": "get__api_v1_support_threads__id__messages",
+        "summary": "Read one thread including closed",
+        "description": "Роль: Owner or ADMIN. ",
+        "operationId": "get__api_v1_support_threads__id_",
         "security": [
           {
             "bearerAuth": []
@@ -11507,27 +11730,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 30
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0
             }
           }
         ],
@@ -11543,10 +11745,7 @@
                   ],
                   "properties": {
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/SupportMessageListItem"
-                      }
+                      "$ref": "#/components/schemas/SupportThreadResponse"
                     }
                   }
                 }
@@ -11645,152 +11844,6 @@
           }
         }
       },
-      "post": {
-        "tags": [
-          "Support"
-        ],
-        "summary": "Написать сообщение",
-        "description": "Роль: Владелец или ADMIN. ",
-        "operationId": "post__api_v1_support_threads__id__messages",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Успешный ответ",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "data"
-                  ],
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/SupportMessageResponse"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Неверный код или JSON",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Требуется вход",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Недостаточно прав",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Запись не найдена",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Конфликт состояния, цены или остатков",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Ошибка проверки данных",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Ограничение частоты",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Интеграция отключена",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Message"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/support/threads/{id}": {
       "patch": {
         "tags": [
           "Support"
@@ -11930,6 +11983,363 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ThreadStatus"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/threads/{id}/messages": {
+      "get": {
+        "tags": [
+          "Support"
+        ],
+        "summary": "Сообщения обращения",
+        "description": "Роль: Владелец или ADMIN. latest=true returns latest messages. before/after are message IDs within this thread; incompatible with offset. Ordered ascending by created_at,id. meta.hasMore refers to the requested direction.",
+        "operationId": "get__api_v1_support_threads__id__messages",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "latest",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SupportMessageListItem"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "before": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "after": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "hasMore",
+                        "before",
+                        "after"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Неверный код или JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Запись не найдена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния, цены или остатков",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка проверки данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Ограничение частоты",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ошибка сервера",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Интеграция отключена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Support"
+        ],
+        "summary": "Написать сообщение",
+        "description": "Роль: Владелец или ADMIN. Optional clientMessageId: UUID unique per thread and author. Replay returns the original message even after closure. Different trimmed body returns 409 IDEMPOTENCY_CONFLICT. No key preserves legacy behavior.",
+        "operationId": "post__api_v1_support_threads__id__messages",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SupportMessageResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Неверный код или JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Запись не найдена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния, цены или остатков",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка проверки данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Ограничение частоты",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ошибка сервера",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Интеграция отключена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Message"
               }
             }
           }
@@ -16872,7 +17282,7 @@
         ],
         "responses": {
           "200": {
-            "description": "SSE: id, event, data",
+            "description": "SSE: id, event, data. support.status payload: {threadId: UUID, status: OPEN|CLOSED}; owner receives creation and status changes; ADMIN receives status changes. Repeated unchanged PATCH emits no event. support.message payload: {threadId: UUID, messageId: UUID}. Read current thread after reconnect.",
             "content": {
               "text/event-stream": {
                 "schema": {

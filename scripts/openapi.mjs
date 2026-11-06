@@ -138,7 +138,7 @@ const schemas = {
   ),
   MockPayment: object({ status: { type: 'string', enum: ['PAID', 'FAILED'], default: 'PAID' } }),
   Thread: object({ orderId: uuid, message: string }, ['message']),
-  Message: object({ message: string }, ['message']),
+  Message: object({ message: string, clientMessageId: uuid }, ['message']),
   ThreadStatus: object({ status: { type: 'string', enum: ['OPEN', 'CLOSED'] } }, ['status']),
   Category: object({ name: localized, sort: { type: 'integer', minimum: 0 } }, ['name']),
   Product: object(
@@ -399,6 +399,14 @@ const schemas = {
     shift_id: nullable(uuid),
   }),
   OrderDetail: object({
+    recipient: object({ first_name: string, last_name: string, phone: string }),
+    pickup: object({
+      id: uuid,
+      name: string,
+      address: string,
+      latitude: { type: 'number' },
+      longitude: { type: 'number' },
+    }),
     id: uuid,
     ...orderFields,
     items: arr(ref('OrderItemResponse')),
@@ -514,10 +522,24 @@ const schemas = {
     order_id: nullable(uuid),
     status: { type: 'string', enum: ['OPEN', 'CLOSED'] },
     created_at: dateTime,
+    updated_at: dateTime,
   }),
   SupportThreadCreated: object({ id: uuid }),
-  SupportMessageListItem: object({ id: uuid, author_id: uuid, body: string, created_at: dateTime }),
-  SupportMessageResponse: object({ id: uuid, thread_id: uuid, author_id: uuid, body: string, created_at: dateTime }),
+  SupportMessageListItem: object({
+    id: uuid,
+    author_id: uuid,
+    body: string,
+    created_at: dateTime,
+    client_message_id: nullable(uuid),
+  }),
+  SupportMessageResponse: object({
+    id: uuid,
+    thread_id: uuid,
+    author_id: uuid,
+    body: string,
+    created_at: dateTime,
+    client_message_id: nullable(uuid),
+  }),
   StaffSummary: object({
     id: uuid,
     phone: string,
@@ -600,7 +622,7 @@ const spec = {
     title: 'Бекбекей · API доставки продуктов',
     version: '0.1.0',
     description:
-      'Рабочий MVP по PDF-макету. SMS выводятся только в серверный лог. QR-платежи и возвраты — тестовая имитация. Цены передаются в тыйынах (KGS × 100). Вход: opaque Bearer access token на 15 минут, refresh token на 30 дней. Поля запросов — camelCase; SQL-ответы — snake_case. Списки: limit/offset. Перед оформлением запросите checkout/quote.',
+      'Рабочий MVP по PDF-макету. Реальный SMS-провайдер не подключён; тестовый OTP доступен ADMIN только вне production. QR-платежи и возвраты — тестовая имитация. Цены передаются в тыйынах (KGS × 100). Вход: opaque Bearer access token на 15 минут, refresh token на 30 дней. Поля запросов — camelCase; SQL-ответы — snake_case. Списки: limit/offset; поддержка также latest/before/after. Перед оформлением запросите checkout/quote.',
   },
   servers: [{ url: 'http://localhost:3000' }],
   tags: [
@@ -882,6 +904,18 @@ add('get', '/courier/statistics', 'Courier', 'Заработок и рейтин
   query: [['period', { type: 'string', enum: ['today', 'week', 'month'] }]],
   response: ref('CourierStatistics'),
 });
+add('get', '/courier/deliveries/{id}/earning', 'Courier', 'Read earning for own assigned delivery', {
+  role: 'COURIER',
+  description:
+    'POSTED is a recorded earning; PENDING is an active delivery without earning; UNKNOWN is a terminal delivery without a recorded earning. amount=null is not zero. Amounts are in tyiyn.',
+  response: object({
+    order_id: uuid,
+    status: { type: 'string', enum: ['POSTED', 'PENDING', 'UNKNOWN'] },
+    amount: nullable(amount),
+    created_at: nullable(dateTime),
+    currency: { type: 'string', enum: ['KGS'] },
+  }),
+});
 add('get', '/courier/history', 'Courier', 'История доставки', {
   role: 'COURIER',
   query: pag,
@@ -903,14 +937,29 @@ add('post', '/support/threads', 'Support', 'Создать обращение', 
   status: 201,
   response: ref('SupportThreadCreated'),
 });
+add('get', '/support/threads/{id}', 'Support', 'Read one thread including closed', {
+  role: 'Owner or ADMIN',
+  response: ref('SupportThreadResponse'),
+});
 add('get', '/support/threads/{id}/messages', 'Support', 'Сообщения обращения', {
   role: 'Владелец или ADMIN',
-  query: pag,
+  query: [...pag, ['latest', { type: 'string', enum: ['true'] }], ['before', uuid], ['after', uuid]],
+  description:
+    'latest=true returns latest messages. before/after are message IDs within this thread; incompatible with offset. Ordered ascending by created_at,id. meta.hasMore refers to the requested direction.',
   response: arr(ref('SupportMessageListItem')),
 });
+spec.paths['/api/v1/support/threads/{id}/messages'].get.responses[200].content[
+  'application/json'
+].schema.properties.meta = object({ hasMore: boolean, before: nullable(uuid), after: nullable(uuid) }, [
+  'hasMore',
+  'before',
+  'after',
+]);
 add('post', '/support/threads/{id}/messages', 'Support', 'Написать сообщение', {
   role: 'Владелец или ADMIN',
   body: 'Message',
+  description:
+    'Optional clientMessageId: UUID unique per thread and author. Replay returns the original message even after closure. Different trimmed body returns 409 IDEMPOTENCY_CONFLICT. No key preserves legacy behavior.',
   status: 201,
   response: ref('SupportMessageResponse'),
 });
@@ -1039,7 +1088,8 @@ add('get', '/events', 'Events', 'Поток событий SSE', {
     'Authorization: Bearer обязателен. Используйте fetch-stream, обычный EventSource не позволяет задать этот заголовок. Переподключение: Last-Event-ID либо after. Поток закрывается при истечении access token и остановке сервера. События хранятся 7 дней. Если курсор старше доступной истории, приходит stream.reset с reason=HISTORY_EXPIRED: перечитайте актуальное состояние через GET.',
 });
 spec.paths['/api/v1/events'].get.responses[200] = {
-  description: 'SSE: id, event, data',
+  description:
+    'SSE: id, event, data. support.status payload: {threadId: UUID, status: OPEN|CLOSED}; owner receives creation and status changes; ADMIN receives status changes. Repeated unchanged PATCH emits no event. support.message payload: {threadId: UUID, messageId: UUID}. Read current thread after reconnect.',
   content: { 'text/event-stream': { schema: { type: 'string' } } },
 };
 spec.paths['/api/v1/orders'].post.responses[200] = {

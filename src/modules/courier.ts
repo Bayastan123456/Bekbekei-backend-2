@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { one, type Database } from '../db.js';
-import { assert, page } from '../core.js';
+import { assert, page, uuid } from '../core.js';
 import { authentication, roles } from './auth.js';
 export function shiftRoutes(db: Database) {
   const r = Router();
@@ -84,12 +84,32 @@ export function shiftRoutes(db: Database) {
       data: { earned: earned!.s, paid: paid!.s, balance: earned!.s - paid!.s, currency: 'KGS' },
     });
   });
+  r.get('/deliveries/:id/earning', async (req, res) => {
+    const task = await one<{ status: string; amount: number | null; created_at: Date | null }>(
+      db,
+      `SELECT o.status,ce.amount,ce.created_at FROM delivery_tasks dt JOIN orders o ON o.id=dt.order_id
+       LEFT JOIN courier_earnings ce ON ce.order_id=o.id AND ce.courier_id=$2
+       WHERE dt.order_id=$1 AND dt.courier_id=$2`,
+      [uuid.parse(req.params.id), req.actor.id],
+    );
+    assert(task, 404, 'NOT_FOUND', 'Delivery not found');
+    const terminal = ['DELIVERED', 'RETURNED', 'CANCELLED'].includes(task.status);
+    res.json({
+      data: {
+        order_id: req.params.id,
+        status: task.amount !== null ? 'POSTED' : terminal ? 'UNKNOWN' : 'PENDING',
+        amount: task.amount,
+        created_at: task.created_at,
+        currency: 'KGS',
+      },
+    });
+  });
   r.get('/history', async (req, res) => {
     const p = page(req.query);
     res.json({
       data: (
         await db.query(
-          `SELECT o.id,o.number,o.status,o.address_snapshot,dt.completed_at,ce.amount earning,r.score FROM delivery_tasks dt JOIN orders o ON o.id=dt.order_id LEFT JOIN courier_earnings ce ON ce.order_id=o.id LEFT JOIN ratings r ON r.order_id=o.id WHERE dt.courier_id=$1 AND o.status IN ('DELIVERED','RETURNED','CANCELLED') ORDER BY o.updated_at DESC LIMIT $2 OFFSET $3`,
+          `SELECT o.id,o.number,o.status,o.address_snapshot,dt.completed_at,ce.amount earning,r.score FROM delivery_tasks dt JOIN orders o ON o.id=dt.order_id LEFT JOIN courier_earnings ce ON ce.order_id=o.id LEFT JOIN ratings r ON r.order_id=o.id WHERE dt.courier_id=$1 AND o.status IN ('DELIVERED','RETURNED','CANCELLED') ORDER BY o.updated_at DESC,o.id DESC LIMIT $2 OFFSET $3`,
           [req.actor.id, p.limit, p.offset],
         )
       ).rows,

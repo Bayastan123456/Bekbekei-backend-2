@@ -199,7 +199,10 @@ test('полный заказ наличными, доставка, единст
   const o = await order(customer, body);
   assert.equal(o.total, 13000);
   assert.equal(o.delivery_fee, 0);
+  assert.equal(o.recipient.phone, customer.phone);
+  assert.equal(o.pickup.id, seedIds.store);
   const { picker, courier } = await staffFor(o);
+  assert.equal((await call('get', `/courier/deliveries/${o.id}/earning`, courier)).status, 'PENDING');
   await call('post', `/delivery/tasks/${o.id}/pickup`, courier, {}, 409);
   await ready(o, picker);
   await call('post', `/delivery/tasks/${o.id}/pickup`, courier);
@@ -208,6 +211,10 @@ test('полный заказ наличными, доставка, единст
   await call('post', `/delivery/tasks/${o.id}/confirm-cash`, courier, {}, 204);
   await call('post', `/delivery/tasks/${o.id}/complete`, courier);
   await call('post', `/delivery/tasks/${o.id}/complete`, courier);
+  const earning = await call('get', `/courier/deliveries/${o.id}/earning`, courier);
+  assert.equal(earning.status, 'POSTED');
+  assert.equal(earning.amount, 8000);
+  await call('get', `/courier/deliveries/${o.id}/earning`, await actor('COURIER'), undefined, 404);
   assert.equal((await call('get', '/courier/statistics', courier)).earnings, 8000);
   await call('put', `/orders/${o.id}/rating`, customer, { score: 5 }, 204);
   assert.equal((await call('get', '/courier/statistics', courier)).rating, 5);
@@ -655,4 +662,102 @@ test('плохая фоновая задача сохраняет попытку
   assert.equal(typeof summary.jobHealth.failed, 'number');
   assert.equal(typeof summary.jobHealth.overdue, 'number');
   assert.ok('oldestDueAt' in summary.jobHealth);
+});
+
+test('support cursor history, idempotency, status events and closed replay', async () => {
+  app = createApp(db, cfg);
+  const owner = await actor(),
+    stranger = await actor();
+  const thread = await call('post', '/support/threads', owner, { message: 'Start' }, 201);
+  await call('get', `/support/threads/${thread.id}`, stranger, undefined, 404);
+  for (let n = 0; n < 110; n++)
+    await db.query(
+      "INSERT INTO support_messages(id,thread_id,author_id,body,created_at) VALUES($1,$2,$3,$4,'2020-01-01T00:00:00Z')",
+      [randomUUID(), thread.id, owner.id, `History ${n}`],
+    );
+  const latest = await request(app)
+    .get(`/api/v1/support/threads/${thread.id}/messages?latest=true&limit=10`)
+    .set('Authorization', `Bearer ${owner.accessToken}`);
+  assert.equal(latest.status, 200);
+  assert.equal(latest.body.data.length, 10);
+  assert.equal(latest.body.meta.hasMore, true);
+  const previous = await call(
+    'get',
+    `/support/threads/${thread.id}/messages?before=${latest.body.meta.before}&limit=100`,
+    owner,
+  );
+  assert.equal(previous.length, 100);
+  assert(!previous.some((m: any) => latest.body.data.some((x: any) => x.id === m.id)));
+  await call('get', `/support/threads/${thread.id}/messages?before=${randomUUID()}`, owner, undefined, 422);
+  await call('get', `/support/threads/${thread.id}/messages?latest=true&offset=0`, owner, undefined, 422);
+  const key = randomUUID();
+  const results = await Promise.all(
+    [1, 2].map(() =>
+      call('post', `/support/threads/${thread.id}/messages`, owner, { message: 'Retry', clientMessageId: key }, 201),
+    ),
+  );
+  assert.equal(results[0].id, results[1].id);
+  await call(
+    'post',
+    `/support/threads/${thread.id}/messages`,
+    owner,
+    { message: 'Changed', clientMessageId: key },
+    409,
+  );
+  await call('patch', `/support/threads/${thread.id}`, admin, { status: 'CLOSED' });
+  const replay = await call(
+    'post',
+    `/support/threads/${thread.id}/messages`,
+    owner,
+    { message: 'Retry', clientMessageId: key },
+    201,
+  );
+  assert.equal(replay.id, results[0].id);
+  await call(
+    'post',
+    `/support/threads/${thread.id}/messages`,
+    owner,
+    { message: 'New', clientMessageId: randomUUID() },
+    409,
+  );
+  assert.equal((await call('get', `/support/threads/${thread.id}`, owner)).status, 'CLOSED');
+  const next = await call('get', `/support/threads/${thread.id}/messages?after=${latest.body.meta.after}`, owner);
+  assert.equal(next.length, 1);
+  assert.equal(next[0].id, replay.id);
+  await call('patch', `/support/threads/${thread.id}`, admin, { status: 'OPEN' });
+  const events = (
+    await db.query("SELECT payload FROM events WHERE user_id=$1 AND type='support.status' ORDER BY id", [owner.id])
+  ).rows;
+  assert.deepEqual(
+    events.map((e: any) => e.payload.status),
+    ['OPEN', 'CLOSED', 'OPEN'],
+  );
+});
+
+test('assigned courier sees contact and authoritative pickup; reassignment revokes access', async () => {
+  app = createApp(db, cfg);
+  const { customer, body } = await setup();
+  const o = await order(customer, body);
+  const courier = await actor('COURIER'),
+    other = await actor('COURIER');
+  await call('post', '/courier/shifts/start', courier);
+  await call('post', '/courier/shifts/start', other);
+  const available = await call('get', '/delivery/tasks', other);
+  const task = available.find((t: any) => t.id === o.id);
+  assert(task);
+  assert.equal(task.recipient, undefined);
+  assert.equal(task.address.apartment, undefined);
+  await call('get', `/delivery/tasks/${o.id}`, courier, undefined, 404);
+  await call('post', `/delivery/tasks/${o.id}/claim`, courier);
+  const detail = await call('get', `/delivery/tasks/${o.id}`, courier);
+  assert.equal(detail.recipient.phone, customer.phone);
+  const store = await one(db, 'SELECT * FROM stores WHERE id=$1', [seedIds.store]);
+  assert.equal(detail.pickup.address, store!.address);
+  assert.equal(detail.pickup.latitude, store!.latitude);
+  await call('get', `/delivery/tasks/${o.id}`, other, undefined, 404);
+  // Exercise authorization after a changed assignment; this does not implement a transfer command.
+  await db.query('UPDATE delivery_tasks SET courier_id=$2 WHERE order_id=$1', [o.id, other.id]);
+  await call('get', `/delivery/tasks/${o.id}`, courier, undefined, 404);
+  await call('post', `/delivery/tasks/${o.id}/pickup`, courier, {}, 404);
+  assert.equal((await call('get', `/delivery/tasks/${o.id}`, other)).recipient.phone, customer.phone);
 });

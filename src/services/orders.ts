@@ -149,6 +149,8 @@ export async function orderDetail(tx: SQL, id: string) {
   assert(order, 404, 'NOT_FOUND', 'Заказ не найден');
   return {
     ...order,
+    recipient: await one(tx, 'SELECT first_name,last_name,phone FROM users WHERE id=$1', [order.user_id]),
+    pickup: await one(tx, 'SELECT id,name,address,latitude,longitude FROM stores WHERE id=$1', [order.store_id]),
     items: (await tx.query<OrderItem>('SELECT * FROM order_items WHERE order_id=$1 ORDER BY id', [id])).rows,
     history: (await tx.query('SELECT status,created_at FROM order_status_history WHERE order_id=$1 ORDER BY id', [id]))
       .rows,
